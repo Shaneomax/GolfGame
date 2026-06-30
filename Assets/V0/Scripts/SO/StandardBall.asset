@@ -16,3 +16,6 @@ MonoBehaviour:
   Mass: 0.045
   WindResistance: 1
   Bounciness: 0.6
+  LinearDrag: 0.5
+  AngularDrag: 1.5
+  StopThreshold: 0.1
