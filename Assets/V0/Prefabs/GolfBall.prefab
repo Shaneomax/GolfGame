@@ -207,8 +207,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5f47deec47358cd4c8af5d9108ac6a6a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerInputController
-  ForceMultiplier: 15
-  MaxDragDistance: 3
+  DragCoefficient: 0.05
+  GravityMultiplier: 2.5
 --- !u!4 &4225031967641623695 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: d37bd3e6795f5f9408df793a5dccec52, type: 3}

@@ -3,13 +3,8 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody))]
 public class PlayerInputController : MonoBehaviour
 {
-    [Header("Settings")]
-    public float ForceMultiplier = 15f;
-    public float MaxDragDistance = 3f;
-
     private Rigidbody rb;
     private Vector3 dragStartPosition;
-    private Vector3 dragCurrentPosition;
     private bool isDragging = false;
 
     private void Awake()
@@ -17,50 +12,43 @@ public class PlayerInputController : MonoBehaviour
         rb = GetComponent<Rigidbody>();
     }
 
-    private void OnMouseDown()
-    {
-        // Only allow input if in Aiming state
-        if (GameStateManager.Instance.CurrentState != GameStateManager.GameState.Aiming)
-            return;
-
-        isDragging = true;
-        dragStartPosition = GetMouseWorldPos();
-    }
-
-    private void OnMouseDrag()
-    {
-        if (!isDragging) return;
-
-        dragCurrentPosition = GetMouseWorldPos();
-        
-        // Optional: Visual feedback (e.g., drawing a line renderer here)
-    }
-
     private void OnMouseUp()
     {
+        if (GameStateManager.Instance.CurrentState != GameStateManager.GameState.Aiming) return;
         if (!isDragging) return;
         isDragging = false;
 
-        // Calculate direction and magnitude
+        // Get references from your match controller
+        MatchSimulationController match = FindObjectOfType<MatchSimulationController>();
+        ClubData club = match.CurrentClub;
+        BallData ball = match.CurrentBall;
+
+        // Calculate drag vector
         Vector3 dragVector = dragStartPosition - GetMouseWorldPos();
         
-        // Clamp the force so the shot isn't too powerful
-        float dragMagnitude = Mathf.Clamp(dragVector.magnitude, 0, MaxDragDistance);
-        Vector3 launchForce = dragVector.normalized * dragMagnitude * ForceMultiplier;
-
-        // Apply physics
+        // 1. Incorporate Club Power and Ball Mass
+        // Force = (Drag * Multiplier * ClubPower) / BallMass
+        float forceMultiplier = 15f;
+        Vector3 launchForce = dragVector.normalized * (dragVector.magnitude * forceMultiplier * club.Power);
+        
+        // Apply force
+        rb.mass = ball.Mass; // Ensure mass matches selected ball
         rb.AddForce(launchForce, ForceMode.Impulse);
 
-        // Transition state to flight
-        GameStateManager.Instance.ChangeState(GameStateManager.GameState.Swinging);
-        
-        // Small delay or logic to switch to Flight state
         GameStateManager.Instance.ChangeState(GameStateManager.GameState.Flight);
+    }
+
+    private void OnMouseDown() 
+    { 
+        if (GameStateManager.Instance.CurrentState == GameStateManager.GameState.Aiming)
+        {
+            isDragging = true;
+            dragStartPosition = GetMouseWorldPos();
+        }
     }
 
     private Vector3 GetMouseWorldPos()
     {
-        // Convert screen mouse position to world position
         Vector3 mousePoint = Input.mousePosition;
         mousePoint.z = Camera.main.WorldToScreenPoint(transform.position).z;
         return Camera.main.ScreenToWorldPoint(mousePoint);
