@@ -15,4 +15,14 @@ public class BallData : ScriptableObject
     
     [Tooltip("How much the ball bounces (combines with terrain friction later).")]
     public float Bounciness = 0.6f;
+
+    [Header("Friction & Stopping")]
+    [Tooltip("Air/Ground sliding resistance (Linear Drag).")]
+    public float LinearDrag = 0.5f;
+    
+    [Tooltip("Rolling resistance to stop infinite rolling (Angular Drag).")]
+    public float AngularDrag = 1.5f; 
+    
+    [Tooltip("Velocity below which the ball is forcefully stopped.")]
+    public float StopThreshold = 0.1f;
 }
