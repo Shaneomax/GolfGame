@@ -843,7 +843,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MatchSimulationController
   CurrentClub: {fileID: 11400000, guid: 15cf0951eff3747428b474464fb224ac, type: 2}
   CurrentBall: {fileID: 11400000, guid: b284ba16acee41146b521dd9163c16de, type: 2}
-  BallPrefab: {fileID: 7078608942264092568, guid: 123ad9ba88384de41b550cd8dcd7f946, type: 3}
+  BallPrefab: {fileID: 956520928194485169, guid: 123ad9ba88384de41b550cd8dcd7f946, type: 3}
   TeeTransform: {fileID: 1951260499}
 --- !u!114 &1694202353
 MonoBehaviour:
@@ -857,15 +857,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63949ed5838b0bf4ba2e31c2a39ef00e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MobileAimController
-  ballTransform: {fileID: 0}
-  DragSensitivity: 0.5
-  MinPitchAngle: 10
-  MaxPitchAngle: 45
-  currentYaw: 0
-  currentPitch: 25
-  currentDistance: 5
-  isAimingActive: 0
-  lastMousePosition: {x: 0, y: 0, z: 0}
 --- !u!1 &1951260498
 GameObject:
   m_ObjectHideFlags: 0
@@ -891,7 +882,7 @@ Transform:
   m_GameObject: {fileID: 1951260498}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 3.569, z: 0}
+  m_LocalPosition: {x: -3.1, y: 1.48, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
