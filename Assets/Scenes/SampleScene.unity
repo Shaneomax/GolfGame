@@ -718,7 +718,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: 9a47dff7fae155845b4a734c85ebf3de, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -824,11 +824,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8c13f2e95ed9628489fe8b96af1c567e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
-  MatchID: 
-  CurrentHole: 1
-  Player1Score: 0
-  Player2Score: 0
-  IsPlayer1Turn: 1
+  <MatchID>k__BackingField: 
+  <CurrentHole>k__BackingField: 1
+  <Player1Score>k__BackingField: 0
+  <Player2Score>k__BackingField: 0
+  <IsPlayer1Turn>k__BackingField: 1
 --- !u!114 &1694202352
 MonoBehaviour:
   m_ObjectHideFlags: 0

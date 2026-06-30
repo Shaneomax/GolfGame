@@ -222,10 +222,10 @@ namespace GolfGame.Controllers
         {
             if (!isDragging || trajectoryPredictor == null) return;
 
-            // Recalculate launch velocity from current drag and show the predicted arc
+            // Recalculate launch velocity from current drag and show the ideal predicted arc.
+            // Note: trajectory uses NO air drag intentionally — real ball lands shorter. Dynamic by design.
             Vector3 launchVelocity = CalculateLaunchVelocity();
-            float airDrag = CurrentBall != null ? CurrentBall.LinearDrag : 0.02f;
-            trajectoryPredictor.ShowTrajectory(transform.position, launchVelocity, airDrag);
+            trajectoryPredictor.ShowTrajectory(transform.position, launchVelocity);
         }
 
         private void OnMouseUp()
