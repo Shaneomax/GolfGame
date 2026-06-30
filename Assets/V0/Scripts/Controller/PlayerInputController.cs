@@ -53,6 +53,7 @@ namespace GolfGame.Controllers
         private Rigidbody rb;
         private Camera mainCamera;
         private Collider ballCollider;
+        private TrajectoryPredictor trajectoryPredictor;
         
         private Vector3 dragStartPosition;
         private bool isDragging = false;
@@ -69,9 +70,10 @@ namespace GolfGame.Controllers
 
         private void Awake()
         {
-            rb = GetComponent<Rigidbody>();
-            ballCollider = GetComponent<Collider>();
-            mainCamera = Camera.main; 
+            rb            = GetComponent<Rigidbody>();
+            ballCollider  = GetComponent<Collider>();
+            mainCamera    = Camera.main;
+            trajectoryPredictor = GetComponent<TrajectoryPredictor>();
         }
 
         private void Start()
@@ -216,39 +218,64 @@ namespace GolfGame.Controllers
             dragStartPosition = GetMouseWorldPos();
         }
 
+        private void OnMouseDrag()
+        {
+            if (!isDragging || trajectoryPredictor == null) return;
+
+            // Recalculate launch velocity from current drag and show the predicted arc
+            Vector3 launchVelocity = CalculateLaunchVelocity();
+            float airDrag = CurrentBall != null ? CurrentBall.LinearDrag : 0.02f;
+            trajectoryPredictor.ShowTrajectory(transform.position, launchVelocity, airDrag);
+        }
+
         private void OnMouseUp()
         {
             if (!isDragging) return;
             isDragging = false;
 
-            Vector3 dragVector = dragStartPosition - GetMouseWorldPos();
-            float dragMagnitude = Mathf.Clamp(dragVector.magnitude, 0, MaxDragDistance);
-            
-            // 1. Flatten the drag vector to the X/Z plane to get the purely horizontal direction of the shot
-            Vector3 flatDirection = new Vector3(dragVector.x, 0, dragVector.z).normalized;
-            if (flatDirection.sqrMagnitude < 0.01f) 
-            {
-                flatDirection = Vector3.forward; // Fallback if dragged straight down perfectly
-            }
+            // Hide the trajectory line immediately on release
+            if (trajectoryPredictor != null)
+                trajectoryPredictor.HideTrajectory();
 
-            // 2. Rotate the flat direction UPWARD by the Loft angle to get a parabolic arc.
-            //    Axis = Cross(flatDir, up) gives the "left" axis relative to the shot.
-            //    A positive angle around that left axis pitches the shot upward.
-            Vector3 loftAxis = Vector3.Cross(flatDirection, Vector3.up);
-            Vector3 launchDirection = Quaternion.AngleAxis(DefaultLoftAngle, loftAxis) * flatDirection;
+            Vector3 launchVelocity = CalculateLaunchVelocity();
+            if (launchVelocity.sqrMagnitude < 0.001f) return; // Ignore accidental micro-taps
 
-            // 3. Scale the force by the ClubData's Power, the drag ratio, and the PowerScale tuner
-            float clubPower = CurrentClub != null ? CurrentClub.Power : 5f;
-            float powerRatio = dragMagnitude / MaxDragDistance;
-            Vector3 launchForce = launchDirection * (powerRatio * clubPower * PowerScale);
+            // Force air-physics state immediately — don't wait for OnCollisionExit next frame
+            collisionCount = 0;
+            isGrounded     = false;
+            isInMud        = false;
 
-            rb.AddForce(launchForce, ForceMode.Impulse);
+            rb.AddForce(launchVelocity, ForceMode.VelocityChange);
             flightStartTime = Time.time;
-            
-            // Assume we immediately leave the ground when launched, allowing air physics to take over
-            UpdatePhysicsDrag();
 
+            UpdatePhysicsDrag();
             GameStateManager.Instance.ChangeState(GameStateManager.GameState.Flight);
+        }
+
+        /// <summary>
+        /// Calculates the launch velocity vector from the current mouse drag.
+        /// Shared between OnMouseDrag (preview) and OnMouseUp (actual shot).
+        /// </summary>
+        private Vector3 CalculateLaunchVelocity()
+        {
+            Vector3 dragVector    = dragStartPosition - GetMouseWorldPos();
+            float dragMagnitude   = Mathf.Clamp(dragVector.magnitude, 0f, MaxDragDistance);
+
+            // 1. Flatten the drag vector onto the X/Z plane to get the horizontal shot direction
+            Vector3 flatDirection = new Vector3(dragVector.x, 0f, dragVector.z).normalized;
+            if (flatDirection.sqrMagnitude < 0.01f)
+                flatDirection = Vector3.forward;
+
+            // 2. Pitch the direction upward by the loft angle for a parabolic arc
+            Vector3 loftAxis      = Vector3.Cross(flatDirection, Vector3.up);
+            Vector3 launchDir     = Quaternion.AngleAxis(DefaultLoftAngle, loftAxis) * flatDirection;
+
+            // 3. Scale by club power, drag ratio, and the PowerScale tuner.
+            //    We now use VelocityChange so velocity = force directly (no mass division needed)
+            float clubPower  = CurrentClub != null ? CurrentClub.Power : 5f;
+            float powerRatio = dragMagnitude / MaxDragDistance;
+
+            return launchDir * (powerRatio * clubPower * PowerScale);
         }
 
         /// <summary>
