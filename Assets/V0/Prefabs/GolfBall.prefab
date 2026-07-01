@@ -31,7 +31,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1497659883974459721}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 1.45126, y: 0.22, z: 3.04287}
   m_LocalScale: {x: 500, y: 500, z: 500}
   m_ConstrainProportionsScale: 1
@@ -141,7 +141,7 @@ Rigidbody:
   m_UseGravity: 1
   m_IsKinematic: 0
   m_Interpolate: 0
-  m_Constraints: 0
+  m_Constraints: 112
   m_CollisionDetection: 0
 --- !u!114 &4298099233657469919
 MonoBehaviour:
@@ -164,6 +164,7 @@ MonoBehaviour:
   MudLinearDrag: 2
   CurrentBall: {fileID: 11400000, guid: b284ba16acee41146b521dd9163c16de, type: 2}
   CurrentClub: {fileID: 11400000, guid: 15cf0951eff3747428b474464fb224ac, type: 2}
+  TargetMarkerPrefab: {fileID: 4578203350107692312, guid: 65e18981ed05e594b838df9c564cd78a, type: 3}
 --- !u!120 &284888292915245395
 LineRenderer:
   serializedVersion: 3

@@ -113,8 +113,18 @@ namespace GolfGame.Controllers
                     inputController.ApplyBallData();
                 }
             }
+        }
 
-            GameStateManager.Instance.ChangeState(GameStateManager.GameState.Aiming);
+        /// <summary>
+        /// Transitions the game state from Setup to Aiming.
+        /// Can be called from a UI Button click event in the inspector.
+        /// </summary>
+        public void TransitionSetupToAiming()
+        {
+            if (GameStateManager.Instance != null && GameStateManager.Instance.CurrentState == GameStateManager.GameState.Setup)
+            {
+                GameStateManager.Instance.ChangeState(GameStateManager.GameState.Aiming);
+            }
         }
         
         private void UnlockAimControls() { /* TODO: Implement logic */ }

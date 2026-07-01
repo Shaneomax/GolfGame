@@ -58,14 +58,9 @@ namespace GolfGame.Controllers
             for (int i = 0; i < SimulationSteps; i++)
             {
                 points[i] = position;
-
-                // Pure gravity only — no air drag.
-                // This makes the line show the IDEAL/MAXIMUM range.
-                // The real ball (with LinearDrag) will always land shorter.
                 velocity += Physics.gravity * TimeStep;
                 position += velocity * TimeStep;
 
-                // Stop drawing once the arc dips below the launch ground level
                 if (position.y < startPosition.y - GroundStopOffset)
                 {
                     validSteps = i + 1;

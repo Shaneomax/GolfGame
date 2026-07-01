@@ -1,90 +1,121 @@
-// using UnityEngine;
-// using Unity.Cinemachine;
+using UnityEngine;
+using Unity.Cinemachine;
 
-// public class CinemachineAimController : MonoBehaviour
-// {
-//     [Header("Cinemachine Reference")]
-//     public CinemachineCamera AimCamera;
-    
-//     // Reference to the OrbitalFollow component where the axes actually live
-//     private CinemachineOrbitalFollow orbitalFollow;
+namespace GolfGame.Controllers
+{
+    /// <summary>
+    /// Dynamically positions Cinemachine cameras for Golf Clash-style gameplay.
+    /// Setup state: top-down camera directly above the ball looking down.
+    /// Aiming state: behind-the-ball camera aligned with the locked aim direction.
+    /// Both cameras are positioned entirely by script — no manual placement needed.
+    /// </summary>
+    public class CinemachineAimController : MonoBehaviour
+    {
+        [Header("Cinemachine References")]
+        [Tooltip("The camera used for the top-down Setup phase.")]
+        public CinemachineCamera SetupCamera;
 
-//     [Header("Sensitivity Settings")]
-//     public float DragSensitivityX = 0.2f;
-//     public float DragSensitivityY = 0.01f;
+        [Tooltip("The camera used for the behind-the-ball Aiming phase.")]
+        public CinemachineCamera AimCamera;
 
-//     private bool isAimingActive = false;
-//     private Vector3 lastInputPosition;
+        [Header("Setup Camera Settings")]
+        [Tooltip("Height above the ball for the top-down setup view.")]
+        public float SetupCameraHeight = 20f;
 
-//     private void Start()
-//     {
-//         GameStateManager.Instance.OnStateEnter += OnGameStateChanged;
-        
-//         // Retrieve the OrbitalFollow component from the camera
-//         orbitalFollow = AimCamera.GetComponent<CinemachineOrbitalFollow>();
-        
-//         if (orbitalFollow != null)
-//         {
-//             // FIX: In Cinemachine 3, the property is just "Name"
-//             orbitalFollow.HorizontalAxis.Name = "";
-//             orbitalFollow.VerticalAxis.Name = "";
-//         }
-//     }
+        [Header("Aim Camera Settings")]
+        [Tooltip("Distance behind the ball for the aim view.")]
+        public float AimCameraDistance = 5f;
 
-//     private void OnDestroy()
-//     {
-//         if (GameStateManager.Instance != null)
-//             GameStateManager.Instance.OnStateEnter -= OnGameStateChanged;
-//     }
+        [Tooltip("Height above the ball for the aim view.")]
+        public float AimCameraHeight = 2f;
 
-//     private void OnGameStateChanged(GameStateManager.GameState newState)
-//     {
-//         if (newState == GameStateManager.GameState.Aiming)
-//         {
-//             GameObject ball = GameObject.FindWithTag("Player");
-//             if (ball != null)
-//             {
-//                 AimCamera.LookAt = ball.transform;
-//                 AimCamera.Follow = ball.transform;
-//                 AimCamera.Priority = 10; 
-//                 isAimingActive = true;
-//             }
-//         }
-//         else
-//         {
-//             AimCamera.Priority = 0; 
-//             isAimingActive = false;
-//         }
-//     }
+        private Transform ballTransform;
+        private PlayerInputController ballInput;
 
-//     private void Update()
-//     {
-//         if (!isAimingActive || orbitalFollow == null) return;
+        private void Start()
+        {
+            if (GameStateManager.Instance != null)
+            {
+                GameStateManager.Instance.OnStateEnter += OnGameStateChanged;
+            }
+        }
 
-//         HandleInput();
-//     }
+        private void OnDestroy()
+        {
+            if (GameStateManager.Instance != null)
+            {
+                GameStateManager.Instance.OnStateEnter -= OnGameStateChanged;
+            }
+        }
 
-//     private void HandleInput()
-//     {
-//         if (Input.GetMouseButtonDown(0))
-//         {
-//             lastInputPosition = Input.mousePosition;
-//         }
-//         else if (Input.GetMouseButton(0))
-//         {
-//             Vector3 delta = Input.mousePosition - lastInputPosition;
-//             lastInputPosition = Input.mousePosition;
+        private void FindBall()
+        {
+            GameObject ball = GameObject.FindWithTag("Player");
+            if (ball != null)
+            {
+                ballTransform = ball.transform;
+                ballInput = ball.GetComponent<PlayerInputController>();
+            }
+        }
 
-//             // Apply to the specific axes inside the OrbitalFollow component
-//             orbitalFollow.HorizontalAxis.Value += delta.x * DragSensitivityX;
-//             orbitalFollow.VerticalAxis.Value -= delta.y * DragSensitivityY;
-//         }
-//     }
+        private void OnGameStateChanged(GameStateManager.GameState newState)
+        {
+            FindBall();
 
-//     public Vector3 GetAimDirection()
-//     {
-//         Vector3 forward = Camera.main.transform.forward;
-//         forward.y = 0;
-//         return forward.normalized;
-//     }
-// }
+            if (newState == GameStateManager.GameState.Setup)
+            {
+                if (SetupCamera != null && ballTransform != null)
+                {
+                    SetupCamera.Follow = ballTransform;
+                    SetupCamera.LookAt = ballTransform;
+
+                    // Position top-down above the ball
+                    SetupCamera.transform.position = ballTransform.position + Vector3.up * SetupCameraHeight;
+                    SetupCamera.transform.rotation = Quaternion.LookRotation(Vector3.down, Vector3.forward);
+
+                    SetupCamera.Priority = 5;
+                }
+
+                if (AimCamera != null)
+                {
+                    AimCamera.Priority = 2;
+                }
+            }
+            else if (newState == GameStateManager.GameState.Aiming)
+            {
+                if (AimCamera != null && ballTransform != null)
+                {
+                    Vector3 aimDir = Vector3.forward;
+                    if (ballInput != null)
+                    {
+                        aimDir = ballInput.FixedAimDirection;
+                    }
+
+                    // Position behind the ball, opposite to the aim direction
+                    Vector3 camPos = ballTransform.position 
+                        - aimDir * AimCameraDistance 
+                        + Vector3.up * AimCameraHeight;
+                    AimCamera.transform.position = camPos;
+
+                    // Look at a point slightly ahead of the ball in the aim direction
+                    Vector3 lookTarget = ballTransform.position + aimDir * 2f;
+                    AimCamera.transform.rotation = Quaternion.LookRotation(lookTarget - camPos);
+
+                    AimCamera.Follow = ballTransform;
+                    AimCamera.LookAt = ballTransform;
+                    AimCamera.Priority = 2;
+                }
+
+                if (SetupCamera != null)
+                {
+                    SetupCamera.Priority = 1;
+                }
+            }
+            else
+            {
+                if (SetupCamera != null) SetupCamera.Priority = 0;
+                if (AimCamera != null) AimCamera.Priority = 0;
+            }
+        }
+    }
+}

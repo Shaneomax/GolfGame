@@ -46,6 +46,10 @@ namespace GolfGame.Controllers
         [Tooltip("Data containing club power stats.")]
         public ClubData CurrentClub;
 
+        [Header("Target Marker Settings")]
+        [Tooltip("Prefab for the 3D target marker spawned on the ground.")]
+        public GameObject TargetMarkerPrefab;
+
         #endregion
 
         #region Private Fields
@@ -64,6 +68,12 @@ namespace GolfGame.Controllers
         private bool isGrounded = false;
         private bool isInMud = false;
 
+        private Vector3 fixedAimDirection = Vector3.forward;
+        public Vector3 FixedAimDirection => fixedAimDirection;
+
+        private GameObject activeTargetMarker;
+        private bool isDraggingTarget = false;
+
         #endregion
 
         #region Unity Lifecycle
@@ -79,6 +89,204 @@ namespace GolfGame.Controllers
         private void Start()
         {
             ApplyBallData();
+            if (GameStateManager.Instance != null)
+            {
+                GameStateManager.Instance.OnStateEnter += OnStateEnter;
+                GameStateManager.Instance.OnStateExit += OnStateExit;
+
+                if (GameStateManager.Instance.CurrentState == GameStateManager.GameState.Setup)
+                {
+                    OnStateEnter(GameStateManager.GameState.Setup);
+                }
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (GameStateManager.Instance != null)
+            {
+                GameStateManager.Instance.OnStateEnter -= OnStateEnter;
+                GameStateManager.Instance.OnStateExit -= OnStateExit;
+            }
+            if (activeTargetMarker != null)
+            {
+                Destroy(activeTargetMarker);
+            }
+        }
+
+        private void OnStateEnter(GameStateManager.GameState newState)
+        {
+            if (newState == GameStateManager.GameState.Setup)
+            {
+                SpawnTargetMarker();
+                RepositionTargetMarker();
+            }
+            else if (newState == GameStateManager.GameState.Aiming)
+            {
+                if (trajectoryPredictor != null)
+                {
+                    trajectoryPredictor.HideTrajectory();
+                }
+                if (activeTargetMarker != null)
+                {
+                    activeTargetMarker.SetActive(false);
+                }
+            }
+            else if (newState == GameStateManager.GameState.Flight)
+            {
+                if (activeTargetMarker != null)
+                {
+                    activeTargetMarker.SetActive(false);
+                }
+            }
+        }
+
+        private void OnStateExit(GameStateManager.GameState oldState)
+        {
+            if (oldState == GameStateManager.GameState.Setup)
+            {
+                isDraggingTarget = false;
+            }
+        }
+
+        /// <summary>
+        /// Calculates the maximum horizontal range the ball can travel using projectile kinematics.
+        /// R = (v² × sin(2θ)) / g
+        /// </summary>
+        private float CalculateMaxRange()
+        {
+            float clubPower = CurrentClub != null ? CurrentClub.Power : 15f;
+            float v = clubPower * PowerScale;
+            float g = Mathf.Abs(Physics.gravity.y);
+            float theta = DefaultLoftAngle * Mathf.Deg2Rad;
+            float range = (v * v * Mathf.Sin(2f * theta)) / g;
+            return Mathf.Max(range, 1f); // Minimum 1 unit to avoid zero
+        }
+
+        private void SpawnTargetMarker()
+        {
+            if (TargetMarkerPrefab != null && activeTargetMarker == null)
+            {
+                float maxRange = CalculateMaxRange();
+                Vector3 spawnPos = transform.position + fixedAimDirection * maxRange;
+                spawnPos.y = 0f;
+                activeTargetMarker = Instantiate(TargetMarkerPrefab, spawnPos, Quaternion.identity);
+            }
+            
+            if (activeTargetMarker != null)
+            {
+                activeTargetMarker.SetActive(true);
+                Vector3 diff = activeTargetMarker.transform.position - transform.position;
+                fixedAimDirection = new Vector3(diff.x, 0f, diff.z).normalized;
+            }
+        }
+
+        private void RepositionTargetMarker()
+        {
+            if (activeTargetMarker != null)
+            {
+                float maxRange = CalculateMaxRange();
+                Vector3 newPos = transform.position + fixedAimDirection * maxRange;
+                newPos.y = 0f;
+                activeTargetMarker.transform.position = newPos;
+                activeTargetMarker.SetActive(true);
+            }
+        }
+
+        private void HandleSetupInput()
+        {
+            if (Input.GetMouseButtonDown(0))
+            {
+                if (UnityEngine.EventSystems.EventSystem.current != null && 
+                    UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
+                {
+                    return;
+                }
+
+                Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
+                if (Physics.Raycast(ray, out RaycastHit hit))
+                {
+                    if (activeTargetMarker != null && (hit.collider.gameObject == activeTargetMarker || hit.collider.transform.IsChildOf(activeTargetMarker.transform)))
+                    {
+                        isDraggingTarget = true;
+                    }
+                }
+            }
+            else if (Input.GetMouseButton(0) && isDraggingTarget && activeTargetMarker != null)
+            {
+                Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
+                // Project onto Y=0 ground plane
+                Plane groundPlane = new Plane(Vector3.up, Vector3.zero);
+                if (groundPlane.Raycast(ray, out float enter))
+                {
+                    Vector3 hitPoint = ray.GetPoint(enter);
+                    
+                    Vector3 diff = hitPoint - transform.position;
+                    float maxRange = CalculateMaxRange();
+                    if (new Vector3(diff.x, 0f, diff.z).magnitude > maxRange)
+                    {
+                        hitPoint = transform.position + new Vector3(diff.x, 0f, diff.z).normalized * maxRange;
+                    }
+
+                    // Lock Y to 0
+                    hitPoint.y = 0f;
+                    activeTargetMarker.transform.position = hitPoint;
+
+                    Vector3 horizontalDirection = new Vector3(diff.x, 0f, diff.z).normalized;
+                    if (horizontalDirection.sqrMagnitude > 0.001f)
+                    {
+                        fixedAimDirection = horizontalDirection;
+                    }
+                }
+            }
+            else if (Input.GetMouseButtonUp(0))
+            {
+                isDraggingTarget = false;
+            }
+        }
+
+        private Vector3 CalculateVelocityToHitTarget(Vector3 targetPos)
+        {
+            Vector3 diff = targetPos - transform.position;
+            Vector3 horizontalDiff = new Vector3(diff.x, 0f, diff.z);
+            float d = horizontalDiff.magnitude;
+            float h = diff.y;
+            float g = Mathf.Abs(Physics.gravity.y);
+            float theta = DefaultLoftAngle * Mathf.Deg2Rad;
+
+            float denominator = 2f * (d * Mathf.Tan(theta) - h);
+            if (denominator <= 0.001f || d <= 0.001f)
+            {
+                return horizontalDiff.normalized * 5f + Vector3.up * 2f;
+            }
+
+            float speed = (d / Mathf.Cos(theta)) * Mathf.Sqrt(g / denominator);
+            
+            float maxClubPower = CurrentClub != null ? CurrentClub.Power : 15f;
+            float maxSpeed = maxClubPower * PowerScale;
+            speed = Mathf.Min(speed, maxSpeed);
+
+            Vector3 flatDirection = horizontalDiff.normalized;
+            Vector3 loftAxis = Vector3.Cross(flatDirection, Vector3.up);
+            Vector3 launchDir = Quaternion.AngleAxis(DefaultLoftAngle, loftAxis) * flatDirection;
+
+            return launchDir * speed;
+        }
+
+        private void Update()
+        {
+            if (GameStateManager.Instance == null) return;
+
+            if (GameStateManager.Instance.CurrentState == GameStateManager.GameState.Setup)
+            {
+                HandleSetupInput();
+
+                if (trajectoryPredictor != null && activeTargetMarker != null)
+                {
+                    Vector3 launchVelocity = CalculateVelocityToHitTarget(activeTargetMarker.transform.position);
+                    trajectoryPredictor.ShowTrajectory(transform.position, launchVelocity);
+                }
+            }
         }
 
         private void FixedUpdate()
@@ -220,12 +428,8 @@ namespace GolfGame.Controllers
 
         private void OnMouseDrag()
         {
-            if (!isDragging || trajectoryPredictor == null) return;
-
-            // Recalculate launch velocity from current drag and show the ideal predicted arc.
-            // Note: trajectory uses NO air drag intentionally — real ball lands shorter. Dynamic by design.
-            Vector3 launchVelocity = CalculateLaunchVelocity();
-            trajectoryPredictor.ShowTrajectory(transform.position, launchVelocity);
+            if (!isDragging) return;
+            // No trajectory line update when dragging per user request.
         }
 
         private void OnMouseUp()
@@ -259,19 +463,21 @@ namespace GolfGame.Controllers
         private Vector3 CalculateLaunchVelocity()
         {
             Vector3 dragVector    = dragStartPosition - GetMouseWorldPos();
-            float dragMagnitude   = Mathf.Clamp(dragVector.magnitude, 0f, MaxDragDistance);
+            
+            // Calculate power by projecting the drag vector onto the fixed aim direction
+            // (Dragging backward relative to fixedAimDirection gives positive force forward)
+            float dragProj        = Vector3.Dot(dragVector, fixedAimDirection);
+            float dragMagnitude   = Mathf.Clamp(dragProj, 0f, MaxDragDistance);
 
-            // 1. Flatten the drag vector onto the X/Z plane to get the horizontal shot direction
-            Vector3 flatDirection = new Vector3(dragVector.x, 0f, dragVector.z).normalized;
-            if (flatDirection.sqrMagnitude < 0.01f)
-                flatDirection = Vector3.forward;
+            // 1. Lock shot direction to the fixed aim direction set in Setup phase
+            Vector3 flatDirection = fixedAimDirection;
 
             // 2. Pitch the direction upward by the loft angle for a parabolic arc
             Vector3 loftAxis      = Vector3.Cross(flatDirection, Vector3.up);
             Vector3 launchDir     = Quaternion.AngleAxis(DefaultLoftAngle, loftAxis) * flatDirection;
 
             // 3. Scale by club power, drag ratio, and the PowerScale tuner.
-            //    We now use VelocityChange so velocity = force directly (no mass division needed)
+            //    We use VelocityChange so velocity = force directly (no mass division needed)
             float clubPower  = CurrentClub != null ? CurrentClub.Power : 5f;
             float powerRatio = dragMagnitude / MaxDragDistance;
 
