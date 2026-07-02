@@ -378,12 +378,12 @@ namespace GolfGame.Controllers
             }
             else if (isGrounded)
             {
-                rb.linearDamping  = GroundLinearDamping;
+                rb.linearDamping  = CurrentBall != null ? CurrentBall.LinearDrag : GroundLinearDamping;
                 rb.angularDamping = CurrentBall != null ? CurrentBall.AngularDrag : GroundAngularDamping;
             }
             else
             {
-                rb.linearDamping  = CurrentBall != null ? CurrentBall.LinearDrag : 0.02f;
+                rb.linearDamping  = CurrentBall != null ? (CurrentBall.WindResistance * 0.02f) : 0.02f;
                 rb.angularDamping = 0.01f;
             }
         }
@@ -485,11 +485,23 @@ namespace GolfGame.Controllers
             Vector3 toTarget      = activeTargetMarker.transform.position - transform.position;
             Vector3 flatDirection = new Vector3(toTarget.x, 0f, toTarget.z).normalized;
 
+            float distanceMultiplier = 1f;
+
             if (AccuracyController != null && AccuracyController.IsLocked)
             {
                 float deviationAngle = AccuracyController.LockedAccuracyValue * AccuracyController.DeviationMultiplier;
                 Debug.Log($"[PlayerInput] Accuracy locked: value={AccuracyController.LockedAccuracyValue:F3} | deviation={deviationAngle:F1}°");
                 flatDirection = Quaternion.AngleAxis(deviationAngle, Vector3.up) * flatDirection;
+
+                float accuracyAbs = Mathf.Abs(AccuracyController.LockedAccuracyValue);
+                if (accuracyAbs < 0.05f)
+                {
+                    distanceMultiplier = 1.05f; // Perfect shot bonus
+                }
+                else
+                {
+                    distanceMultiplier = 1f - (accuracyAbs * 0.2f); // Miss penalty
+                }
             }
             else
             {
@@ -502,7 +514,7 @@ namespace GolfGame.Controllers
             Vector3 launchDir = Quaternion.AngleAxis(DefaultLoftAngle, loftAxis) * flatDirection;
 
             Vector3 preciseVelocity = CalculateVelocityToHitTarget(activeTargetMarker.transform.position);
-            float speed = preciseVelocity.magnitude * powerRatio;
+            float speed = preciseVelocity.magnitude * powerRatio * distanceMultiplier;
 
             return launchDir * speed;
         }
