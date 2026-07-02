@@ -73,6 +73,8 @@ namespace GolfGame.Controllers
 
         private GameObject activeTargetMarker;
         private bool isDraggingTarget = false;
+        public bool IsDraggingTarget => isDraggingTarget;
+        public GameObject ActiveTargetMarker => activeTargetMarker;
 
         #endregion
 
@@ -284,7 +286,7 @@ namespace GolfGame.Controllers
                 if (trajectoryPredictor != null && activeTargetMarker != null)
                 {
                     Vector3 launchVelocity = CalculateVelocityToHitTarget(activeTargetMarker.transform.position);
-                    trajectoryPredictor.ShowTrajectory(transform.position, launchVelocity);
+                    trajectoryPredictor.ShowTrajectory(transform.position, launchVelocity, activeTargetMarker.transform.position.y);
                 }
             }
         }

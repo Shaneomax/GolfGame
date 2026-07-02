@@ -27,6 +27,7 @@ namespace GolfGame.Controllers
         #region Private Fields
 
         private LineRenderer lineRenderer;
+        private Vector3[] pointsArray;
 
         #endregion
 
@@ -44,32 +45,61 @@ namespace GolfGame.Controllers
 
         /// <summary>
         /// Simulates the ball's ideal path using only gravity (zero air drag).
-        /// The actual ball will land shorter due to real air resistance — intentionally dynamic.
+        /// Falls back to startPosition.y - GroundStopOffset as target height.
         /// </summary>
         /// <param name="startPosition">World-space position of the ball at launch.</param>
         /// <param name="launchVelocity">The initial velocity vector of the ball.</param>
         public void ShowTrajectory(Vector3 startPosition, Vector3 launchVelocity)
         {
-            Vector3[] points = new Vector3[SimulationSteps];
+            ShowTrajectory(startPosition, launchVelocity, startPosition.y - GroundStopOffset);
+        }
+
+        /// <summary>
+        /// Simulates the ball's ideal path using only gravity (zero air drag).
+        /// Stops drawing the trajectory line when the ball falls below the target height on descent.
+        /// </summary>
+        /// <param name="startPosition">World-space position of the ball at launch.</param>
+        /// <param name="launchVelocity">The initial velocity vector of the ball.</param>
+        /// <param name="targetHeight">The height (Y coordinate) at which the trajectory should end.</param>
+        public void ShowTrajectory(Vector3 startPosition, Vector3 launchVelocity, float targetHeight)
+        {
             Vector3 position = startPosition;
             Vector3 velocity = launchVelocity;
-            int validSteps   = SimulationSteps;
-
-            for (int i = 0; i < SimulationSteps; i++)
+            
+            // Dynamic check up to 500 steps (25 seconds of flight time)
+            int maxSteps = 500;
+            if (pointsArray == null || pointsArray.Length < maxSteps)
             {
-                points[i] = position;
+                pointsArray = new Vector3[maxSteps];
+            }
+
+            int validSteps = 0;
+
+            for (int i = 0; i < maxSteps; i++)
+            {
+                pointsArray[i] = position;
+                validSteps++;
+
                 velocity += Physics.gravity * TimeStep;
                 position += velocity * TimeStep;
 
-                if (position.y < startPosition.y - GroundStopOffset)
+                // Stop drawing when falling (velocity.y < 0) and height falls below targetHeight
+                if (velocity.y < 0f && position.y < targetHeight)
                 {
-                    validSteps = i + 1;
+                    // Add one final point exactly at the target height to touch the ground perfectly
+                    if (validSteps < maxSteps)
+                    {
+                        Vector3 finalPos = position;
+                        finalPos.y = targetHeight;
+                        pointsArray[validSteps] = finalPos;
+                        validSteps++;
+                    }
                     break;
                 }
             }
 
             lineRenderer.positionCount = validSteps;
-            lineRenderer.SetPositions(points);
+            lineRenderer.SetPositions(pointsArray);
             lineRenderer.enabled = true;
         }
 

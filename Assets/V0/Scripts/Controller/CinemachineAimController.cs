@@ -3,12 +3,6 @@ using Unity.Cinemachine;
 
 namespace GolfGame.Controllers
 {
-    /// <summary>
-    /// Dynamically positions Cinemachine cameras for Golf Clash-style gameplay.
-    /// Setup state: top-down camera directly above the ball looking down.
-    /// Aiming state: behind-the-ball camera aligned with the locked aim direction.
-    /// Both cameras are positioned entirely by script — no manual placement needed.
-    /// </summary>
     public class CinemachineAimController : MonoBehaviour
     {
         [Header("Cinemachine References")]
@@ -17,17 +11,6 @@ namespace GolfGame.Controllers
 
         [Tooltip("The camera used for the behind-the-ball Aiming phase.")]
         public CinemachineCamera AimCamera;
-
-        [Header("Setup Camera Settings")]
-        [Tooltip("Height above the ball for the top-down setup view.")]
-        public float SetupCameraHeight = 20f;
-
-        [Header("Aim Camera Settings")]
-        [Tooltip("Distance behind the ball for the aim view.")]
-        public float AimCameraDistance = 5f;
-
-        [Tooltip("Height above the ball for the aim view.")]
-        public float AimCameraHeight = 2f;
 
         private Transform ballTransform;
         private PlayerInputController ballInput;
@@ -64,57 +47,61 @@ namespace GolfGame.Controllers
 
             if (newState == GameStateManager.GameState.Setup)
             {
-                if (SetupCamera != null && ballTransform != null)
-                {
-                    SetupCamera.Follow = ballTransform;
-                    SetupCamera.LookAt = ballTransform;
-
-                    // Position top-down above the ball
-                    SetupCamera.transform.position = ballTransform.position + Vector3.up * SetupCameraHeight;
-                    SetupCamera.transform.rotation = Quaternion.LookRotation(Vector3.down, Vector3.forward);
-
-                    SetupCamera.Priority = 5;
-                }
-
-                if (AimCamera != null)
-                {
-                    AimCamera.Priority = 2;
-                }
+                if (SetupCamera != null) SetupCamera.Priority = 10;
+                if (AimCamera != null) AimCamera.Priority = 0;
             }
             else if (newState == GameStateManager.GameState.Aiming)
             {
+                if (SetupCamera != null) SetupCamera.Priority = 0;
+                
                 if (AimCamera != null && ballTransform != null)
                 {
-                    Vector3 aimDir = Vector3.forward;
-                    if (ballInput != null)
-                    {
-                        aimDir = ballInput.FixedAimDirection;
-                    }
-
-                    // Position behind the ball, opposite to the aim direction
-                    Vector3 camPos = ballTransform.position 
-                        - aimDir * AimCameraDistance 
-                        + Vector3.up * AimCameraHeight;
-                    AimCamera.transform.position = camPos;
-
-                    // Look at a point slightly ahead of the ball in the aim direction
-                    Vector3 lookTarget = ballTransform.position + aimDir * 2f;
-                    AimCamera.transform.rotation = Quaternion.LookRotation(lookTarget - camPos);
-
+                    AimCamera.Priority = 10;
+                    
+                    // Keep AimCamera locked to the ball
                     AimCamera.Follow = ballTransform;
                     AimCamera.LookAt = ballTransform;
-                    AimCamera.Priority = 2;
-                }
-
-                if (SetupCamera != null)
-                {
-                    SetupCamera.Priority = 1;
                 }
             }
             else
             {
                 if (SetupCamera != null) SetupCamera.Priority = 0;
                 if (AimCamera != null) AimCamera.Priority = 0;
+            }
+        }
+
+        private void Update()
+        {
+            if (GameStateManager.Instance == null) return;
+
+            // --- SETUP CAMERA LOGIC ---
+            if (GameStateManager.Instance.CurrentState == GameStateManager.GameState.Setup)
+            {
+                if (ballTransform == null) FindBall();
+
+                // If the marker has spawned, assign it to Cinemachine so it tracks it!
+                if (SetupCamera != null && ballInput != null && ballInput.ActiveTargetMarker != null)
+                {
+                    if (SetupCamera.Follow != ballInput.ActiveTargetMarker.transform)
+                    {
+                        SetupCamera.Follow = ballInput.ActiveTargetMarker.transform;
+                        SetupCamera.LookAt = ballInput.ActiveTargetMarker.transform;
+                    }
+                }
+            }
+            
+            // --- AIM CAMERA LOGIC ---
+            if (GameStateManager.Instance.CurrentState == GameStateManager.GameState.Aiming)
+            {
+                // Force the AimCamera to stay behind the ball based on your aiming direction
+                if (AimCamera != null && ballTransform != null && ballInput != null)
+                {
+                    Vector3 aimDir = ballInput.FixedAimDirection;
+                    // Note: You should ideally use an invisible target object for the AimCamera too, 
+                    // but this keeps it simple based on your current setup.
+                    Vector3 camPos = ballTransform.position - aimDir * 5f + Vector3.up * 2f;
+                    AimCamera.transform.position = camPos;
+                }
             }
         }
     }
