@@ -1541,7 +1541,6 @@ GameObject:
   - component: {fileID: 1694202351}
   - component: {fileID: 1694202350}
   - component: {fileID: 1694202352}
-  - component: {fileID: 1694202353}
   - component: {fileID: 1694202354}
   m_Layer: 0
   m_Name: GameManager
@@ -1610,18 +1609,6 @@ MonoBehaviour:
   CurrentBall: {fileID: 11400000, guid: b284ba16acee41146b521dd9163c16de, type: 2}
   BallPrefab: {fileID: 1497659883974459721, guid: 123ad9ba88384de41b550cd8dcd7f946, type: 3}
   TeeTransform: {fileID: 1951260499}
---- !u!114 &1694202353
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1694202348}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 63949ed5838b0bf4ba2e31c2a39ef00e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::MobileAimController
 --- !u!114 &1694202354
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1636,11 +1623,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GolfGame.Controllers.ShotAccuracyController
   ArrowIndicator: {fileID: 1921582938}
   NeedlePivot: {fileID: 1921582939}
-  NeedleMinAngle: 5
-  NeedleMaxAngle: 177
-  PerfectAngle: 90
-  BaseHalfSwingDuration: 0.8
-  MaxSpeedMultiplier: 4
+  NeedleMinAngle: 0
+  NeedleMaxAngle: 180
+  DeviationMultiplier: 20
+  BaseHalfSwingDuration: 2
+  MaxSpeedMultiplier: 1
 --- !u!1 &1748910008
 GameObject:
   m_ObjectHideFlags: 0
@@ -1747,7 +1734,7 @@ Transform:
   m_GameObject: {fileID: 1748910008}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.59414, y: 0, z: 110.9}
+  m_LocalPosition: {x: 2.9, y: 1, z: 85.7}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1784,7 +1771,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GolfGame.Controllers.CinemachineAimController
   SetupCamera: {fileID: 686554125}
   AimCamera: {fileID: 1874664565}
-  AimTargetAnchor: {fileID: 0}
+  AimTargetAnchor: {fileID: 1748910012}
 --- !u!4 &1776894339
 Transform:
   m_ObjectHideFlags: 0
@@ -1964,13 +1951,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1921582938}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: -0.7071068, w: 0.7071068}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 2.75, z: 0}
   m_LocalScale: {x: 0.25, y: 0.25, z: 0.25}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: -90}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!212 &1921582940
 SpriteRenderer:
   serializedVersion: 2
@@ -2022,7 +2009,7 @@ SpriteRenderer:
   m_MaskInteraction: 0
   m_Sprite: {fileID: 21300000, guid: 84e1a118a3290b24b923ebad54d1e50e, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_FlipX: 0
+  m_FlipX: 1
   m_FlipY: 0
   m_DrawMode: 0
   m_Size: {x: 5.12, y: 5.12}

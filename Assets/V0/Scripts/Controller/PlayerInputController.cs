@@ -17,8 +17,7 @@ namespace GolfGame.Controllers
         [Tooltip("Scale factor to reduce the overall launch force. Lower = softer shot. Adjust this first if the ball goes too far.")]
         public float PowerScale = 0.3f;
 
-        [Tooltip("Maximum sideways deviation (in degrees) applied to a shot when the accuracy arrow is fully off-centre. " +
-                 "0 = no deviation (perfect shot every time). 20-30 = realistic Golf Rival-style miss.")]
+        [Tooltip("Maximum sideways deviation (in degrees) applied to a shot when the accuracy arrow is fully off-centre. 0 = no deviation (perfect shot every time). 20-30 = realistic Golf Rival-style miss.")]
         public float MaxDeviationAngle = 22f;
 
         [Header("Physics Modifiers")]
@@ -30,7 +29,7 @@ namespace GolfGame.Controllers
 
         [Header("Terrain Modifiers")]
         [Tooltip("How fast the ball stops rolling in the mud.")]
-        public float MudAngularDrag = 8.0f; 
+        public float MudAngularDrag = 8.0f;
 
         [Tooltip("Extra air/sliding resistance when in mud.")]
         public float MudLinearDrag = 4.0f;
@@ -42,21 +41,19 @@ namespace GolfGame.Controllers
         [Header("Data References")]
         [Tooltip("Data containing physics values and ball details.")]
         public BallData CurrentBall;
-        
+
         [Tooltip("Data containing club power stats.")]
         public ClubData CurrentClub;
 
         [Header("Shot Accuracy")]
-        [Tooltip("Reference to the ShotAccuracyController that owns the arrow indicator. " +
-                 "Assign in the Inspector.")]
+        [Tooltip("Reference to the ShotAccuracyController that owns the arrow indicator. Assign in the Inspector.")]
         public ShotAccuracyController AccuracyController;
 
         [Header("Target Marker Settings")]
         [Tooltip("Prefab for the 3D target marker spawned on the ground.")]
         public GameObject TargetMarkerPrefab;
 
-        [Tooltip("Maximum angle (degrees) the player can swing the target marker left or right " +
-                 "from the direction it spawned in. 0 = locked, 180 = fully free.")]
+        [Tooltip("Maximum angle (degrees) the player can swing the target marker left or right from the direction it spawned in. 0 = locked, 180 = fully free.")]
         public float MaxAimAngle = 45f;
 
         #endregion
@@ -82,7 +79,6 @@ namespace GolfGame.Controllers
 
         /// <summary>The aim direction frozen at marker-spawn time. Used as the centre of the angle cone.</summary>
         private Vector3 initialAimDirection = Vector3.forward;
-
         private GameObject activeTargetMarker;
         private bool isDraggingTarget = false;
         public bool IsDraggingTarget => isDraggingTarget;
@@ -128,7 +124,7 @@ namespace GolfGame.Controllers
             }
         }
 
-        private void OnStateEnter(GameStateManager.GameState newState)
+       private void OnStateEnter(GameStateManager.GameState newState)
         {
             if (newState == GameStateManager.GameState.Setup)
             {
@@ -140,14 +136,18 @@ namespace GolfGame.Controllers
                 if (trajectoryPredictor != null)
                 {
                     trajectoryPredictor.HideTrajectory();
+                    LineRenderer lr = trajectoryPredictor.GetComponent<LineRenderer>();
+                    if (lr != null) 
+                    {
+                        lr.enabled = false;
+                    }
                 }
+
                 if (activeTargetMarker != null)
                 {
                     activeTargetMarker.SetActive(false);
                 }
 
-                // Pass the current club to the accuracy controller so it knows
-                // how fast to oscillate the needle (lower Accuracy = faster).
                 if (AccuracyController != null)
                 {
                     AccuracyController.SetClub(CurrentClub);
@@ -155,8 +155,6 @@ namespace GolfGame.Controllers
             }
             else if (newState == GameStateManager.GameState.Flight)
             {
-                // Stamp the time so the stop-threshold guard in FixedUpdate
-                // doesn't fire before physics has had a chance to move the ball.
                 flightStartTime = Time.time;
 
                 if (activeTargetMarker != null)
@@ -177,11 +175,11 @@ namespace GolfGame.Controllers
         private float CalculateMaxRange()
         {
             float clubPower = CurrentClub != null ? CurrentClub.Power : 15f;
-            float v = clubPower * PowerScale;
+            float v = clubPower * PowerScale; 
             float g = Mathf.Abs(Physics.gravity.y);
             float theta = DefaultLoftAngle * Mathf.Deg2Rad;
             float range = (v * v * Mathf.Sin(2f * theta)) / g;
-            return Mathf.Max(range, 1f); // Minimum 1 unit to avoid zero
+            return Mathf.Max(range, 1f);
         }
 
         private void SpawnTargetMarker()
@@ -199,8 +197,6 @@ namespace GolfGame.Controllers
                 activeTargetMarker.SetActive(true);
                 Vector3 diff = activeTargetMarker.transform.position - transform.position;
                 fixedAimDirection = new Vector3(diff.x, 0f, diff.z).normalized;
-
-                // Lock in the spawn direction as the centre of the allowed arc.
                 initialAimDirection = fixedAimDirection;
             }
         }
@@ -239,36 +235,27 @@ namespace GolfGame.Controllers
             else if (Input.GetMouseButton(0) && isDraggingTarget && activeTargetMarker != null)
             {
                 Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
-                // Project onto Y=0 ground plane
                 Plane groundPlane = new Plane(Vector3.up, Vector3.zero);
                 if (groundPlane.Raycast(ray, out float enter))
                 {
                     Vector3 hitPoint = ray.GetPoint(enter);
-
                     Vector3 diff = hitPoint - transform.position;
                     Vector3 horizontalDiff = new Vector3(diff.x, 0f, diff.z);
                     float maxRange = CalculateMaxRange();
 
-                    // ── ANGLE CONE CONSTRAINT ────────────────────────────────────
-                    // Measure the signed angle between the spawn direction and the
-                    // current drag direction, then clamp it to ±MaxAimAngle.
                     Vector3 desiredDir = horizontalDiff.normalized;
                     if (desiredDir.sqrMagnitude > 0.001f)
                     {
                         float signedAngle = Vector3.SignedAngle(initialAimDirection, desiredDir, Vector3.up);
                         float clampedAngle = Mathf.Clamp(signedAngle, -MaxAimAngle, MaxAimAngle);
 
-                        // Rebuild the direction from the clamped angle.
                         desiredDir = Quaternion.AngleAxis(clampedAngle, Vector3.up) * initialAimDirection;
-
-                        // Clamp distance to max range.
                         float dist = Mathf.Min(horizontalDiff.magnitude, maxRange);
                         hitPoint = transform.position + desiredDir * dist;
                         hitPoint.y = 0f;
 
                         fixedAimDirection = desiredDir;
                     }
-                    // ─────────────────────────────────────────────────────────────
 
                     activeTargetMarker.transform.position = hitPoint;
                 }
@@ -295,7 +282,6 @@ namespace GolfGame.Controllers
             }
 
             float speed = (d / Mathf.Cos(theta)) * Mathf.Sqrt(g / denominator);
-            
             float maxClubPower = CurrentClub != null ? CurrentClub.Power : 15f;
             float maxSpeed = maxClubPower * PowerScale;
             speed = Mathf.Min(speed, maxSpeed);
@@ -314,11 +300,18 @@ namespace GolfGame.Controllers
             if (GameStateManager.Instance.CurrentState == GameStateManager.GameState.Setup)
             {
                 HandleSetupInput();
-
                 if (trajectoryPredictor != null && activeTargetMarker != null)
                 {
+                    // The line renderer calculates EXACTLY to the marker's position. No halving.
                     Vector3 launchVelocity = CalculateVelocityToHitTarget(activeTargetMarker.transform.position);
                     trajectoryPredictor.ShowTrajectory(transform.position, launchVelocity, activeTargetMarker.transform.position.y);
+                }
+            }
+            else if (GameStateManager.Instance.CurrentState == GameStateManager.GameState.Aiming)
+            {
+                if (!isDragging && trajectoryPredictor != null)
+                {
+                    trajectoryPredictor.HideTrajectory();
                 }
             }
         }
@@ -327,9 +320,6 @@ namespace GolfGame.Controllers
         {
             if (GameStateManager.Instance.CurrentState == GameStateManager.GameState.Flight)
             {
-                // Wait a brief moment after launch to allow physics to apply the force.
-                // Also require isGrounded: we never want to freeze the ball while it is
-                // still in the air (e.g. at the peak of its arc where velocity is low).
                 if (Time.time > flightStartTime + 0.1f && isGrounded)
                 {
                     if (CurrentBall != null && rb.linearVelocity.sqrMagnitude < (CurrentBall.StopThreshold * CurrentBall.StopThreshold))
@@ -367,7 +357,6 @@ namespace GolfGame.Controllers
                 bounciness         = CurrentBall.Bounciness,
                 dynamicFriction    = 0.4f,
                 staticFriction     = 0.4f,
-                // CombineMax ensures the bounciness value is always respected on contact
                 bounceCombine      = PhysicsMaterialCombine.Maximum,
                 frictionCombine    = PhysicsMaterialCombine.Average
             };
@@ -380,9 +369,6 @@ namespace GolfGame.Controllers
 
         #region Physics Management
 
-        /// <summary>
-        /// Updates the Rigidbody's damping based on its current terrain/air context.
-        /// </summary>
         private void UpdatePhysicsDrag()
         {
             if (isInMud)
@@ -392,15 +378,13 @@ namespace GolfGame.Controllers
             }
             else if (isGrounded)
             {
-                // Use BallData.AngularDrag if available, otherwise fall back to Inspector value
                 rb.linearDamping  = GroundLinearDamping;
                 rb.angularDamping = CurrentBall != null ? CurrentBall.AngularDrag : GroundAngularDamping;
             }
             else
             {
-                // Air: use BallData.LinearDrag for realistic in-flight resistance
                 rb.linearDamping  = CurrentBall != null ? CurrentBall.LinearDrag : 0.02f;
-                rb.angularDamping = 0.01f; // Minimal spin drag in the air
+                rb.angularDamping = 0.01f;
             }
         }
 
@@ -445,35 +429,18 @@ namespace GolfGame.Controllers
 
         private void OnMouseDown()
         {
-            // Only allow aiming/shooting if in the correct state
             if (GameStateManager.Instance.CurrentState != GameStateManager.GameState.Aiming)
                 return;
 
             isDragging = true;
-            dragStartPosition = Input.mousePosition; // Use screen space for UI consistency
-
-            // Lock the accuracy arrow the moment the player touches the ball.
-            // This freezes the needle position and stores LockedAccuracyValue.
-            AccuracyController?.LockAccuracy();
+            dragStartPosition = Input.mousePosition; 
         }
 
         private void OnMouseDrag()
         {
             if (!isDragging) return;
-
-            // Calculate drag vector
             Vector3 currentMousePos = Input.mousePosition;
             Vector3 dragVector = dragStartPosition - currentMousePos;
-            
-            // Convert drag to world space or local aim direction
-            // Here we use the drag vector to influence the trajectory
-            Vector3 launchVelocity = CalculateDragVelocity(dragVector);
-
-            // Update trajectory predictor in real-time
-            if (trajectoryPredictor != null)
-            {
-                trajectoryPredictor.ShowTrajectory(transform.position, launchVelocity);
-            }
         }
 
         private void OnMouseUp()
@@ -484,48 +451,71 @@ namespace GolfGame.Controllers
             if (trajectoryPredictor != null)
                 trajectoryPredictor.HideTrajectory();
 
-            Vector3 launchVelocity = CalculateDragVelocity(dragStartPosition - Input.mousePosition);
-            
+            if (AccuracyController != null)
+                AccuracyController.LockAccuracy();
+
+            if (activeTargetMarker == null)
+            {
+                Debug.LogWarning("[PlayerInput] No target marker — cannot fire.");
+                return;
+            }
+
+            Vector3 dragVector = dragStartPosition - Input.mousePosition;
+            Vector3 launchVelocity = CalculateDeviatedShotVelocity(dragVector);
+
             if (launchVelocity.sqrMagnitude > 0.1f)
             {
-                // Wake the rigidbody first — StopBall() puts it to sleep, so
-                // AddForce would be ignored on a sleeping body.
                 rb.WakeUp();
                 rb.AddForce(launchVelocity, ForceMode.VelocityChange);
                 GameStateManager.Instance.ChangeState(GameStateManager.GameState.Flight);
             }
+            else
+            {
+                if (AccuracyController != null)
+                    AccuracyController.ResetLock();
+                Debug.Log("[PlayerInput] Shot cancelled — drag too short. Accuracy lock reset.");
+            }
+        }
+
+        private Vector3 CalculateDeviatedShotVelocity(Vector3 dragVector)
+        {
+            float dragMagnitude = Mathf.Clamp(dragVector.magnitude, 0f, MaxDragDistance);
+            float powerRatio    = dragMagnitude / MaxDragDistance;
+
+            Vector3 toTarget      = activeTargetMarker.transform.position - transform.position;
+            Vector3 flatDirection = new Vector3(toTarget.x, 0f, toTarget.z).normalized;
+
+            if (AccuracyController != null && AccuracyController.IsLocked)
+            {
+                float deviationAngle = AccuracyController.LockedAccuracyValue * AccuracyController.DeviationMultiplier;
+                Debug.Log($"[PlayerInput] Accuracy locked: value={AccuracyController.LockedAccuracyValue:F3} | deviation={deviationAngle:F1}°");
+                flatDirection = Quaternion.AngleAxis(deviationAngle, Vector3.up) * flatDirection;
+            }
+            else
+            {
+                Debug.LogWarning("[PlayerInput] AccuracyController not locked at fire time! Using fallback.");
+                float fallback = Random.Range(-MaxDeviationAngle, MaxDeviationAngle);
+                flatDirection  = Quaternion.AngleAxis(fallback, Vector3.up) * flatDirection;
+            }
+
+            Vector3 loftAxis  = Vector3.Cross(flatDirection, Vector3.up);
+            Vector3 launchDir = Quaternion.AngleAxis(DefaultLoftAngle, loftAxis) * flatDirection;
+
+            Vector3 preciseVelocity = CalculateVelocityToHitTarget(activeTargetMarker.transform.position);
+            float speed = preciseVelocity.magnitude * powerRatio;
+
+            return launchDir * speed;
         }
 
         private Vector3 CalculateDragVelocity(Vector3 dragVector)
         {
-            // Normalize drag to a 0-1 range based on MaxDragDistance
             float dragMagnitude = Mathf.Clamp(dragVector.magnitude, 0f, MaxDragDistance);
-            float powerRatio = dragMagnitude / MaxDragDistance;
-
-            // Use FixedAimDirection (set during Setup) as the base direction
-            Vector3 flatDirection = fixedAimDirection;
-
-            // ── GOLF RIVAL ACCURACY DEVIATION ────────────────────────────────
-            // LockedAccuracyValue: -1 (max left miss) … 0 (perfect) … +1 (max right miss)
-            // Rotate the flat direction sideways around the world-up axis.
-            if (AccuracyController != null && AccuracyController.IsLocked)
-            {
-                float deviationAngle = AccuracyController.LockedAccuracyValue * MaxDeviationAngle;
-                flatDirection = Quaternion.AngleAxis(deviationAngle, Vector3.up) * flatDirection;
-            }
-            // ─────────────────────────────────────────────────────────────────
-
-            // Add lift (Parabolic arc)
-            Vector3 loftAxis = Vector3.Cross(flatDirection, Vector3.up);
-            Vector3 launchDir = Quaternion.AngleAxis(DefaultLoftAngle, loftAxis) * flatDirection;
-
-            // Calculate final velocity
-            float clubPower = CurrentClub != null ? CurrentClub.Power : 10f;
+            float powerRatio    = dragMagnitude / MaxDragDistance;
+            float clubPower     = CurrentClub != null ? CurrentClub.Power : 10f;
+            Vector3 loftAxis    = Vector3.Cross(fixedAimDirection, Vector3.up);
+            Vector3 launchDir   = Quaternion.AngleAxis(DefaultLoftAngle, loftAxis) * fixedAimDirection;
             return launchDir * (powerRatio * clubPower * PowerScale);
         }
-
-        // CalculateLaunchVelocity() and GetMouseWorldPos() removed — they were
-        // unreachable dead code superseded by CalculateDragVelocity().
 
         #endregion
     }
