@@ -638,7 +638,7 @@ GameObject:
   - component: {fileID: 587655271}
   - component: {fileID: 587655270}
   m_Layer: 0
-  m_Name: TrackBall
+  m_Name: TrackBallCamera
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1541,7 +1541,6 @@ GameObject:
   - component: {fileID: 1694202351}
   - component: {fileID: 1694202350}
   - component: {fileID: 1694202352}
-  - component: {fileID: 1694202354}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -1609,25 +1608,6 @@ MonoBehaviour:
   CurrentBall: {fileID: 11400000, guid: b284ba16acee41146b521dd9163c16de, type: 2}
   BallPrefab: {fileID: 1497659883974459721, guid: 123ad9ba88384de41b550cd8dcd7f946, type: 3}
   TeeTransform: {fileID: 1951260499}
---- !u!114 &1694202354
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1694202348}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b913ccf8d8576cc4db080188810d5bd5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GolfGame.Controllers.ShotAccuracyController
-  ArrowIndicator: {fileID: 1921582938}
-  NeedlePivot: {fileID: 1921582939}
-  NeedleMinAngle: 0
-  NeedleMaxAngle: 180
-  DeviationMultiplier: 20
-  BaseHalfSwingDuration: 2
-  MaxSpeedMultiplier: 1
 --- !u!1 &1748910008
 GameObject:
   m_ObjectHideFlags: 0
@@ -1734,7 +1714,7 @@ Transform:
   m_GameObject: {fileID: 1748910008}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 2.9, y: 1, z: 85.7}
+  m_LocalPosition: {x: 0.5, y: 1, z: 317.8}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2109,6 +2089,71 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 65e18981ed05e594b838df9c564cd78a, type: 3}
+--- !u!1001 &1604436171622612216
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 1638904212754295665, guid: ae8846828b186f345931718cb721baf7, type: 3}
+      propertyPath: NeedlePivot
+      value: 
+      objectReference: {fileID: 1921582939}
+    - target: {fileID: 1638904212754295665, guid: ae8846828b186f345931718cb721baf7, type: 3}
+      propertyPath: ArrowIndicator
+      value: 
+      objectReference: {fileID: 1921582938}
+    - target: {fileID: 1693968040961912129, guid: ae8846828b186f345931718cb721baf7, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1693968040961912129, guid: ae8846828b186f345931718cb721baf7, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1693968040961912129, guid: ae8846828b186f345931718cb721baf7, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1693968040961912129, guid: ae8846828b186f345931718cb721baf7, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1693968040961912129, guid: ae8846828b186f345931718cb721baf7, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1693968040961912129, guid: ae8846828b186f345931718cb721baf7, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1693968040961912129, guid: ae8846828b186f345931718cb721baf7, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1693968040961912129, guid: ae8846828b186f345931718cb721baf7, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1693968040961912129, guid: ae8846828b186f345931718cb721baf7, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1693968040961912129, guid: ae8846828b186f345931718cb721baf7, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8652543623614772585, guid: ae8846828b186f345931718cb721baf7, type: 3}
+      propertyPath: m_Name
+      value: ShotAccuracyController
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: ae8846828b186f345931718cb721baf7, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -2130,3 +2175,4 @@ SceneRoots:
   - {fileID: 643886115602411500}
   - {fileID: 587655273}
   - {fileID: 1748910012}
+  - {fileID: 1604436171622612216}
