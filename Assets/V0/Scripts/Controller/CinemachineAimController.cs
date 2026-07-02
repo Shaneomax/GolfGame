@@ -42,12 +42,15 @@ namespace GolfGame.Controllers
             }
         }
 
+        private bool _setupCameraPositioned = false;
+
         private void OnGameStateChanged(GameStateManager.GameState newState)
         {
             FindBall();
 
             if (newState == GameStateManager.GameState.Setup)
             {
+                _setupCameraPositioned = false;
                 if (SetupCamera != null) SetupCamera.Priority = 10;
                 if (AimCamera != null) AimCamera.Priority = 0;
             }
@@ -79,6 +82,19 @@ namespace GolfGame.Controllers
             if (GameStateManager.Instance.CurrentState == GameStateManager.GameState.Setup)
             {
                 if (ballTransform == null) FindBall();
+
+                if (!_setupCameraPositioned && SetupCamera != null && ballInput != null && ballInput.ActiveTargetMarker != null)
+                {
+                    Vector3 markerPos = ballInput.ActiveTargetMarker.transform.position;
+                    
+                    // Position camera directly above the marker
+                    SetupCamera.transform.position = markerPos + Vector3.up * 30f;
+                    
+                    // Look straight down
+                    SetupCamera.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+
+                    _setupCameraPositioned = true;
+                }
                 if (GameStateManager.Instance.CurrentState == GameStateManager.GameState.Aiming)
                 {
                     // Update the anchor's position and rotation
@@ -90,15 +106,6 @@ namespace GolfGame.Controllers
                     }
                 }
 
-                // If the marker has spawned, assign it to Cinemachine so it tracks it!
-                if (SetupCamera != null && ballInput != null && ballInput.ActiveTargetMarker != null)
-                {
-                    if (SetupCamera.Follow != ballInput.ActiveTargetMarker.transform)
-                    {
-                        SetupCamera.Follow = ballInput.ActiveTargetMarker.transform;
-                        SetupCamera.LookAt = ballInput.ActiveTargetMarker.transform;
-                    }
-                }
             }
             
             // --- AIM CAMERA LOGIC ---

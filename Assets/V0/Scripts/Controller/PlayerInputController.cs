@@ -249,15 +249,20 @@ namespace GolfGame.Controllers
                         float signedAngle = Vector3.SignedAngle(initialAimDirection, desiredDir, Vector3.up);
                         float clampedAngle = Mathf.Clamp(signedAngle, -MaxAimAngle, MaxAimAngle);
 
-                        desiredDir = Quaternion.AngleAxis(clampedAngle, Vector3.up) * initialAimDirection;
-                        float dist = Mathf.Min(horizontalDiff.magnitude, maxRange);
-                        hitPoint = transform.position + desiredDir * dist;
-                        hitPoint.y = 0f;
+                        Vector3 testDir = Quaternion.AngleAxis(clampedAngle, Vector3.up) * initialAimDirection;
+                        float testDist = Mathf.Min(horizontalDiff.magnitude, maxRange);
+                        Vector3 testHitPoint = transform.position + testDir * testDist;
+                        testHitPoint.y = 0f;
 
-                        fixedAimDirection = desiredDir;
+                        // Only allow movement if the marker will stay inside the camera's view
+                        Vector3 viewportPos = mainCamera.WorldToViewportPoint(testHitPoint);
+                        if (viewportPos.x >= 0f && viewportPos.x <= 1f && viewportPos.y >= 0f && viewportPos.y <= 1f && viewportPos.z > 0f)
+                        {
+                            fixedAimDirection = testDir;
+                            hitPoint = testHitPoint;
+                            activeTargetMarker.transform.position = hitPoint;
+                        }
                     }
-
-                    activeTargetMarker.transform.position = hitPoint;
                 }
             }
             else if (Input.GetMouseButtonUp(0))
