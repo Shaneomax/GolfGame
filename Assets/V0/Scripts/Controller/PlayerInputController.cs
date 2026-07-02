@@ -55,6 +55,10 @@ namespace GolfGame.Controllers
         [Tooltip("Prefab for the 3D target marker spawned on the ground.")]
         public GameObject TargetMarkerPrefab;
 
+        [Tooltip("Maximum angle (degrees) the player can swing the target marker left or right " +
+                 "from the direction it spawned in. 0 = locked, 180 = fully free.")]
+        public float MaxAimAngle = 45f;
+
         #endregion
 
         #region Private Fields
@@ -75,6 +79,9 @@ namespace GolfGame.Controllers
 
         private Vector3 fixedAimDirection = Vector3.forward;
         public Vector3 FixedAimDirection => fixedAimDirection;
+
+        /// <summary>The aim direction frozen at marker-spawn time. Used as the centre of the angle cone.</summary>
+        private Vector3 initialAimDirection = Vector3.forward;
 
         private GameObject activeTargetMarker;
         private bool isDraggingTarget = false;
@@ -148,6 +155,10 @@ namespace GolfGame.Controllers
             }
             else if (newState == GameStateManager.GameState.Flight)
             {
+                // Stamp the time so the stop-threshold guard in FixedUpdate
+                // doesn't fire before physics has had a chance to move the ball.
+                flightStartTime = Time.time;
+
                 if (activeTargetMarker != null)
                 {
                     activeTargetMarker.SetActive(false);
@@ -188,6 +199,9 @@ namespace GolfGame.Controllers
                 activeTargetMarker.SetActive(true);
                 Vector3 diff = activeTargetMarker.transform.position - transform.position;
                 fixedAimDirection = new Vector3(diff.x, 0f, diff.z).normalized;
+
+                // Lock in the spawn direction as the centre of the allowed arc.
+                initialAimDirection = fixedAimDirection;
             }
         }
 
@@ -230,23 +244,33 @@ namespace GolfGame.Controllers
                 if (groundPlane.Raycast(ray, out float enter))
                 {
                     Vector3 hitPoint = ray.GetPoint(enter);
-                    
+
                     Vector3 diff = hitPoint - transform.position;
+                    Vector3 horizontalDiff = new Vector3(diff.x, 0f, diff.z);
                     float maxRange = CalculateMaxRange();
-                    if (new Vector3(diff.x, 0f, diff.z).magnitude > maxRange)
-                    {
-                        hitPoint = transform.position + new Vector3(diff.x, 0f, diff.z).normalized * maxRange;
-                    }
 
-                    // Lock Y to 0
-                    hitPoint.y = 0f;
+                    // ── ANGLE CONE CONSTRAINT ────────────────────────────────────
+                    // Measure the signed angle between the spawn direction and the
+                    // current drag direction, then clamp it to ±MaxAimAngle.
+                    Vector3 desiredDir = horizontalDiff.normalized;
+                    if (desiredDir.sqrMagnitude > 0.001f)
+                    {
+                        float signedAngle = Vector3.SignedAngle(initialAimDirection, desiredDir, Vector3.up);
+                        float clampedAngle = Mathf.Clamp(signedAngle, -MaxAimAngle, MaxAimAngle);
+
+                        // Rebuild the direction from the clamped angle.
+                        desiredDir = Quaternion.AngleAxis(clampedAngle, Vector3.up) * initialAimDirection;
+
+                        // Clamp distance to max range.
+                        float dist = Mathf.Min(horizontalDiff.magnitude, maxRange);
+                        hitPoint = transform.position + desiredDir * dist;
+                        hitPoint.y = 0f;
+
+                        fixedAimDirection = desiredDir;
+                    }
+                    // ─────────────────────────────────────────────────────────────
+
                     activeTargetMarker.transform.position = hitPoint;
-
-                    Vector3 horizontalDirection = new Vector3(diff.x, 0f, diff.z).normalized;
-                    if (horizontalDirection.sqrMagnitude > 0.001f)
-                    {
-                        fixedAimDirection = horizontalDirection;
-                    }
                 }
             }
             else if (Input.GetMouseButtonUp(0))
@@ -303,8 +327,10 @@ namespace GolfGame.Controllers
         {
             if (GameStateManager.Instance.CurrentState == GameStateManager.GameState.Flight)
             {
-                // Wait a brief moment after launch to allow physics to apply the force
-                if (Time.time > flightStartTime + 0.1f)
+                // Wait a brief moment after launch to allow physics to apply the force.
+                // Also require isGrounded: we never want to freeze the ball while it is
+                // still in the air (e.g. at the peak of its arc where velocity is low).
+                if (Time.time > flightStartTime + 0.1f && isGrounded)
                 {
                     if (CurrentBall != null && rb.linearVelocity.sqrMagnitude < (CurrentBall.StopThreshold * CurrentBall.StopThreshold))
                     {
@@ -462,6 +488,9 @@ namespace GolfGame.Controllers
             
             if (launchVelocity.sqrMagnitude > 0.1f)
             {
+                // Wake the rigidbody first — StopBall() puts it to sleep, so
+                // AddForce would be ignored on a sleeping body.
+                rb.WakeUp();
                 rb.AddForce(launchVelocity, ForceMode.VelocityChange);
                 GameStateManager.Instance.ChangeState(GameStateManager.GameState.Flight);
             }
@@ -495,39 +524,8 @@ namespace GolfGame.Controllers
             return launchDir * (powerRatio * clubPower * PowerScale);
         }
 
-        private Vector3 CalculateLaunchVelocity()
-        {
-            Vector3 dragVector    = dragStartPosition - GetMouseWorldPos();
-            
-            // Calculate power by projecting the drag vector onto the fixed aim direction
-            // (Dragging backward relative to fixedAimDirection gives positive force forward)
-            float dragProj        = Vector3.Dot(dragVector, fixedAimDirection);
-            float dragMagnitude   = Mathf.Clamp(dragProj, 0f, MaxDragDistance);
-
-            // 1. Lock shot direction to the fixed aim direction set in Setup phase
-            Vector3 flatDirection = fixedAimDirection;
-
-            // 2. Pitch the direction upward by the loft angle for a parabolic arc
-            Vector3 loftAxis      = Vector3.Cross(flatDirection, Vector3.up);
-            Vector3 launchDir     = Quaternion.AngleAxis(DefaultLoftAngle, loftAxis) * flatDirection;
-
-            // 3. Scale by club power, drag ratio, and the PowerScale tuner.
-            //    We use VelocityChange so velocity = force directly (no mass division needed)
-            float clubPower  = CurrentClub != null ? CurrentClub.Power : 5f;
-            float powerRatio = dragMagnitude / MaxDragDistance;
-
-            return launchDir * (powerRatio * clubPower * PowerScale);
-        }
-
-        /// <summary>
-        /// Converts the current mouse screen position into world space based on the camera.
-        /// </summary>
-        private Vector3 GetMouseWorldPos()
-        {
-            Vector3 mousePoint = Input.mousePosition;
-            mousePoint.z = mainCamera.WorldToScreenPoint(transform.position).z;
-            return mainCamera.ScreenToWorldPoint(mousePoint);
-        }
+        // CalculateLaunchVelocity() and GetMouseWorldPos() removed — they were
+        // unreachable dead code superseded by CalculateDragVelocity().
 
         #endregion
     }

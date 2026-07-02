@@ -1,4 +1,4 @@
-using System.Collections;
+using DG.Tweening;
 using UnityEngine;
 
 namespace GolfGame.Controllers
@@ -6,18 +6,16 @@ namespace GolfGame.Controllers
     /// <summary>
     /// Golf Rival-style shot accuracy controller.
     ///
-    /// Place this component anywhere in the scene. Assign:
-    ///   - ArrowIndicator : the root GameObject of the arrow/needle UI or world object.
-    ///   - NeedlePivot    : a child Transform that will be rotated to show the current accuracy position.
+    /// The NeedlePivot is the base/hinge of the needle (not its centre).
+    /// DOTween sweeps the pivot's Z rotation from NeedleMinAngle (5°) to
+    /// NeedleMaxAngle (177°) in a Yoyo loop.
     ///
-    /// When the game enters the Aiming state the arrow becomes active and the needle
-    /// oscillates back and forth.  The player must call LockAccuracy() (done automatically
-    /// by PlayerInputController on mouse-down) to freeze the needle and record the shot
-    /// accuracy for that swing.
+    ///   5°  = far left  →  maximum deviation
+    ///  90°  = straight up  →  PERFECT shot (LockedAccuracyValue ≈ 0)
+    /// 177°  = far right →  maximum deviation
     ///
-    /// LockedAccuracyValue is in the range [-1, 1]:
-    ///   0  = perfect centre  → no shot deviation
-    ///  ±1  = max off-centre  → maximum deviation angle applied to the shot
+    /// When LockAccuracy() is called the tween is killed, the current angle is
+    /// sampled, and LockedAccuracyValue is mapped to [-1, 1] where 0 = perfect.
     /// </summary>
     public class ShotAccuracyController : MonoBehaviour
     {
@@ -29,20 +27,29 @@ namespace GolfGame.Controllers
                  "SetActive(true) when Aiming begins, SetActive(false) otherwise.")]
         public GameObject ArrowIndicator;
 
-        [Tooltip("A child Transform inside ArrowIndicator that will be rotated around its Z axis " +
-                 "to visualise the current accuracy position.")]
+        [Tooltip("The pivot Transform at the BASE of the needle. " +
+                 "DOTween rotates this around its local Z axis.")]
         public Transform NeedlePivot;
 
-        [Header("Oscillation Settings")]
-        [Tooltip("How far (in degrees) the needle swings left and right from centre.")]
-        public float MaxOscillationAngle = 45f;
+        [Header("Needle Sweep Range")]
+        [Tooltip("Starting angle (degrees, Z-rotation) for the needle. " +
+                 "5° = left extreme.")]
+        public float NeedleMinAngle = 5f;
 
-        [Tooltip("Base oscillation speed (degrees per second at Accuracy = 100). " +
-                 "Lower ClubData.Accuracy makes the needle swing faster.")]
-        public float BaseOscillationSpeed = 60f;
+        [Tooltip("Ending angle (degrees, Z-rotation) for the needle. " +
+                 "177° = right extreme.")]
+        public float NeedleMaxAngle = 177f;
 
-        [Tooltip("Multiplier applied when club accuracy is 0. Needle swings this many times " +
-                 "faster than BaseOscillationSpeed.")]
+        [Tooltip("The angle at which the shot is perfectly accurate. " +
+                 "Defaults to 90° (needle pointing straight up from the pivot).")]
+        public float PerfectAngle = 90f;
+
+        [Header("Oscillation Speed")]
+        [Tooltip("Time (seconds) for one half-sweep at Accuracy = 100. " +
+                 "Lower ClubData.Accuracy makes the needle move faster.")]
+        public float BaseHalfSwingDuration = 0.8f;
+
+        [Tooltip("At Accuracy = 0 the half-swing is this many times faster than the base.")]
         public float MaxSpeedMultiplier = 4f;
 
         #endregion
@@ -50,36 +57,58 @@ namespace GolfGame.Controllers
         // ─────────────────────────────────────────────────────────────────────
         #region Public API
 
-        /// <summary>Raw accuracy value in the range [-1, 1] at the moment the shot was locked.</summary>
+        /// <summary>
+        /// Accuracy value in [-1, 1] at the moment the shot was locked.
+        ///  0 = perfect centre (needle at PerfectAngle)
+        /// ±1 = maximum miss (needle at NeedleMinAngle or NeedleMaxAngle)
+        /// </summary>
         public float LockedAccuracyValue { get; private set; }
 
         /// <summary>True once LockAccuracy() has been called for the current swing.</summary>
         public bool IsLocked { get; private set; }
 
         /// <summary>
-        /// Freeze the needle and record the current accuracy value.
-        /// Called by PlayerInputController the instant the player starts dragging the ball.
+        /// Freeze the needle and record the accuracy value.
+        /// Called automatically by PlayerInputController on mouse-down.
         /// </summary>
         public void LockAccuracy()
         {
             if (IsLocked) return;
             IsLocked = true;
-            LockedAccuracyValue = _currentRawValue;
 
-            // Stop oscillation coroutine so the needle stays frozen.
-            if (_oscillationCoroutine != null)
+            // Kill the tween → needle stays frozen at its current angle.
+            _needleTween?.Kill();
+            _needleTween = null;
+
+            if (NeedlePivot != null)
             {
-                StopCoroutine(_oscillationCoroutine);
-                _oscillationCoroutine = null;
+                // localEulerAngles.z is in [0, 360). Our sweep is within [5, 177] so
+                // no negative-angle remapping is needed for this range.
+                float currentAngle = NeedlePivot.localEulerAngles.z;
+
+                // Deviation from the perfect angle, normalized to [-1, 1].
+                // Positive deviation  → right miss, negative → left miss.
+                float deviation = currentAngle - PerfectAngle;
+                float maxDeviation = Mathf.Max(PerfectAngle - NeedleMinAngle,
+                                               NeedleMaxAngle - PerfectAngle);
+
+                LockedAccuracyValue = Mathf.Clamp(deviation / maxDeviation, -1f, 1f);
+            }
+            else
+            {
+                LockedAccuracyValue = 0f;
             }
 
-            Debug.Log($"[ShotAccuracy] Locked at {LockedAccuracyValue:F2}  " +
-                      $"({(Mathf.Abs(LockedAccuracyValue) < 0.15f ? "PERFECT!" : "off-centre")})");
+            string quality = Mathf.Abs(LockedAccuracyValue) < 0.10f ? "PERFECT!"
+                           : Mathf.Abs(LockedAccuracyValue) < 0.30f ? "Good"
+                           : "Miss";
+
+            Debug.Log($"[ShotAccuracy] Locked at {LockedAccuracyValue:F2} — {quality}");
         }
 
         /// <summary>
-        /// Update the club reference so the needle speed is correct for the selected club.
-        /// Called by PlayerInputController when Aiming begins.
+        /// Pass the current club so the needle speed matches the selected club.
+        /// Called by PlayerInputController when the Aiming state begins.
         /// </summary>
         public void SetClub(ClubData club)
         {
@@ -91,8 +120,7 @@ namespace GolfGame.Controllers
         // ─────────────────────────────────────────────────────────────────────
         #region Private Fields
 
-        private float _currentRawValue;       // live oscillating value [-1, 1]
-        private Coroutine _oscillationCoroutine;
+        private Tween _needleTween;
         private ClubData _currentClub;
 
         #endregion
@@ -102,21 +130,18 @@ namespace GolfGame.Controllers
 
         private void Start()
         {
-            // Hide the arrow by default.
             if (ArrowIndicator != null) ArrowIndicator.SetActive(false);
 
             if (GameStateManager.Instance != null)
-            {
                 GameStateManager.Instance.OnStateEnter += OnStateEnter;
-            }
         }
 
         private void OnDestroy()
         {
+            _needleTween?.Kill();
+
             if (GameStateManager.Instance != null)
-            {
                 GameStateManager.Instance.OnStateEnter -= OnStateEnter;
-            }
         }
 
         #endregion
@@ -127,37 +152,29 @@ namespace GolfGame.Controllers
         private void OnStateEnter(GameStateManager.GameState newState)
         {
             if (newState == GameStateManager.GameState.Aiming)
-            {
                 ActivateArrow();
-            }
             else
-            {
                 DeactivateArrow();
-            }
         }
 
         private void ActivateArrow()
         {
-            // Reset state for the new swing attempt.
             IsLocked = false;
             LockedAccuracyValue = 0f;
-            _currentRawValue = 0f;
 
             if (ArrowIndicator != null) ArrowIndicator.SetActive(true);
 
-            // Start oscillation.
-            if (_oscillationCoroutine != null) StopCoroutine(_oscillationCoroutine);
-            _oscillationCoroutine = StartCoroutine(OscillateNeedle());
+            // Snap needle to the starting position before the tween begins.
+            if (NeedlePivot != null)
+                NeedlePivot.localRotation = Quaternion.Euler(0f, 0f, NeedleMinAngle);
+
+            StartNeedleTween();
         }
 
         private void DeactivateArrow()
         {
-            // Stop oscillation if it was running.
-            if (_oscillationCoroutine != null)
-            {
-                StopCoroutine(_oscillationCoroutine);
-                _oscillationCoroutine = null;
-            }
+            _needleTween?.Kill();
+            _needleTween = null;
 
             if (ArrowIndicator != null) ArrowIndicator.SetActive(false);
         }
@@ -165,36 +182,27 @@ namespace GolfGame.Controllers
         #endregion
 
         // ─────────────────────────────────────────────────────────────────────
-        #region Oscillation Coroutine
+        #region DOTween Needle
 
-        private IEnumerator OscillateNeedle()
+        private void StartNeedleTween()
         {
-            float time = 0f;
+            _needleTween?.Kill();
+            if (NeedlePivot == null) return;
 
-            while (true)
-            {
-                // Derive oscillation speed from club accuracy.
-                // Accuracy=100 → speed multiplier=1  (slow, easy to time)
-                // Accuracy=0   → speed multiplier=MaxSpeedMultiplier (fast, hard)
-                float accuracyStat = _currentClub != null ? _currentClub.Accuracy : 50f;
-                float t = 1f - Mathf.Clamp01(accuracyStat / 100f);   // 0=easy, 1=hardest
-                float speedMultiplier = Mathf.Lerp(1f, MaxSpeedMultiplier, t);
-                float oscillationSpeed = BaseOscillationSpeed * speedMultiplier;
+            // Speed: higher Accuracy = slower needle (easier to time)
+            float accuracyStat   = _currentClub != null ? _currentClub.Accuracy : 50f;
+            float t              = 1f - Mathf.Clamp01(accuracyStat / 100f);
+            float speedMultiplier = Mathf.Lerp(1f, MaxSpeedMultiplier, t);
+            float halfDuration   = BaseHalfSwingDuration / speedMultiplier;
 
-                time += Time.deltaTime * oscillationSpeed * Mathf.Deg2Rad;
-
-                // Raw value: -1 to 1
-                _currentRawValue = Mathf.Sin(time);
-
-                // Rotate the needle pivot to reflect the current accuracy value.
-                if (NeedlePivot != null)
-                {
-                    float angle = _currentRawValue * MaxOscillationAngle;
-                    NeedlePivot.localRotation = Quaternion.Euler(0f, 0f, -angle);
-                }
-
-                yield return null;
-            }
+            // Sweep from NeedleMinAngle → NeedleMaxAngle, Yoyo loop.
+            // We use RotateMode.Fast so the angle is treated as an absolute
+            // local Euler Z — no spinning past 360°.
+            _needleTween = NeedlePivot
+                .DOLocalRotate(new Vector3(0f, 0f, NeedleMaxAngle), halfDuration, RotateMode.Fast)
+                .SetEase(Ease.InOutSine)
+                .SetLoops(-1, LoopType.Yoyo)
+                .SetUpdate(UpdateType.Normal);
         }
 
         #endregion
