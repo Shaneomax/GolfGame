@@ -2,10 +2,6 @@ using UnityEngine;
 
 namespace GolfGame.Controllers
 {
-    /// <summary>
-    /// Handles user input for aiming and hitting the golf ball, as well as managing physics 
-    /// drag based on terrain context (Air, Ground, Mud).
-    /// </summary>
     [RequireComponent(typeof(Rigidbody))]
     public class PlayerInputController : MonoBehaviour
     {
@@ -20,6 +16,10 @@ namespace GolfGame.Controllers
 
         [Tooltip("Scale factor to reduce the overall launch force. Lower = softer shot. Adjust this first if the ball goes too far.")]
         public float PowerScale = 0.3f;
+
+        [Tooltip("Maximum sideways deviation (in degrees) applied to a shot when the accuracy arrow is fully off-centre. " +
+                 "0 = no deviation (perfect shot every time). 20-30 = realistic Golf Rival-style miss.")]
+        public float MaxDeviationAngle = 22f;
 
         [Header("Physics Modifiers")]
         [Tooltip("Linear damping when the ball is rolling on the ground. Overrides BallData.LinearDrag on landing.")]
@@ -45,6 +45,11 @@ namespace GolfGame.Controllers
         
         [Tooltip("Data containing club power stats.")]
         public ClubData CurrentClub;
+
+        [Header("Shot Accuracy")]
+        [Tooltip("Reference to the ShotAccuracyController that owns the arrow indicator. " +
+                 "Assign in the Inspector.")]
+        public ShotAccuracyController AccuracyController;
 
         [Header("Target Marker Settings")]
         [Tooltip("Prefab for the 3D target marker spawned on the ground.")]
@@ -133,6 +138,13 @@ namespace GolfGame.Controllers
                 {
                     activeTargetMarker.SetActive(false);
                 }
+
+                // Pass the current club to the accuracy controller so it knows
+                // how fast to oscillate the needle (lower Accuracy = faster).
+                if (AccuracyController != null)
+                {
+                    AccuracyController.SetClub(CurrentClub);
+                }
             }
             else if (newState == GameStateManager.GameState.Flight)
             {
@@ -151,10 +163,6 @@ namespace GolfGame.Controllers
             }
         }
 
-        /// <summary>
-        /// Calculates the maximum horizontal range the ball can travel using projectile kinematics.
-        /// R = (v² × sin(2θ)) / g
-        /// </summary>
         private float CalculateMaxRange()
         {
             float clubPower = CurrentClub != null ? CurrentClub.Power : 15f;
@@ -310,10 +318,6 @@ namespace GolfGame.Controllers
 
         #region Initialization
 
-        /// <summary>
-        /// Applies the ball configuration data (Mass, default drags) to the Rigidbody.
-        /// Can be called externally when instantiating the ball.
-        /// </summary>
         public void ApplyBallData()
         {
             if (CurrentBall != null && rb != null)
@@ -328,9 +332,6 @@ namespace GolfGame.Controllers
             }
         }
 
-        /// <summary>
-        /// Creates and applies a PhysicsMaterial to the ball's collider using BallData.Bounciness.
-        /// </summary>
         private void ApplyBounciness()
         {
             if (ballCollider == null || CurrentBall == null) return;
@@ -403,9 +404,6 @@ namespace GolfGame.Controllers
             UpdatePhysicsDrag();
         }
 
-        /// <summary>
-        /// Stops the ball completely and transitions the state back to Aiming.
-        /// </summary>
         private void StopBall()
         {
             rb.linearVelocity = Vector3.zero;
@@ -421,17 +419,35 @@ namespace GolfGame.Controllers
 
         private void OnMouseDown()
         {
+            // Only allow aiming/shooting if in the correct state
             if (GameStateManager.Instance.CurrentState != GameStateManager.GameState.Aiming)
                 return;
 
             isDragging = true;
-            dragStartPosition = GetMouseWorldPos();
+            dragStartPosition = Input.mousePosition; // Use screen space for UI consistency
+
+            // Lock the accuracy arrow the moment the player touches the ball.
+            // This freezes the needle position and stores LockedAccuracyValue.
+            AccuracyController?.LockAccuracy();
         }
 
         private void OnMouseDrag()
         {
             if (!isDragging) return;
-            // No trajectory line update when dragging per user request.
+
+            // Calculate drag vector
+            Vector3 currentMousePos = Input.mousePosition;
+            Vector3 dragVector = dragStartPosition - currentMousePos;
+            
+            // Convert drag to world space or local aim direction
+            // Here we use the drag vector to influence the trajectory
+            Vector3 launchVelocity = CalculateDragVelocity(dragVector);
+
+            // Update trajectory predictor in real-time
+            if (trajectoryPredictor != null)
+            {
+                trajectoryPredictor.ShowTrajectory(transform.position, launchVelocity);
+            }
         }
 
         private void OnMouseUp()
@@ -439,29 +455,46 @@ namespace GolfGame.Controllers
             if (!isDragging) return;
             isDragging = false;
 
-            // Hide the trajectory line immediately on release
             if (trajectoryPredictor != null)
                 trajectoryPredictor.HideTrajectory();
 
-            Vector3 launchVelocity = CalculateLaunchVelocity();
-            if (launchVelocity.sqrMagnitude < 0.001f) return; // Ignore accidental micro-taps
-
-            // Force air-physics state immediately — don't wait for OnCollisionExit next frame
-            collisionCount = 0;
-            isGrounded     = false;
-            isInMud        = false;
-
-            rb.AddForce(launchVelocity, ForceMode.VelocityChange);
-            flightStartTime = Time.time;
-
-            UpdatePhysicsDrag();
-            GameStateManager.Instance.ChangeState(GameStateManager.GameState.Flight);
+            Vector3 launchVelocity = CalculateDragVelocity(dragStartPosition - Input.mousePosition);
+            
+            if (launchVelocity.sqrMagnitude > 0.1f)
+            {
+                rb.AddForce(launchVelocity, ForceMode.VelocityChange);
+                GameStateManager.Instance.ChangeState(GameStateManager.GameState.Flight);
+            }
         }
 
-        /// <summary>
-        /// Calculates the launch velocity vector from the current mouse drag.
-        /// Shared between OnMouseDrag (preview) and OnMouseUp (actual shot).
-        /// </summary>
+        private Vector3 CalculateDragVelocity(Vector3 dragVector)
+        {
+            // Normalize drag to a 0-1 range based on MaxDragDistance
+            float dragMagnitude = Mathf.Clamp(dragVector.magnitude, 0f, MaxDragDistance);
+            float powerRatio = dragMagnitude / MaxDragDistance;
+
+            // Use FixedAimDirection (set during Setup) as the base direction
+            Vector3 flatDirection = fixedAimDirection;
+
+            // ── GOLF RIVAL ACCURACY DEVIATION ────────────────────────────────
+            // LockedAccuracyValue: -1 (max left miss) … 0 (perfect) … +1 (max right miss)
+            // Rotate the flat direction sideways around the world-up axis.
+            if (AccuracyController != null && AccuracyController.IsLocked)
+            {
+                float deviationAngle = AccuracyController.LockedAccuracyValue * MaxDeviationAngle;
+                flatDirection = Quaternion.AngleAxis(deviationAngle, Vector3.up) * flatDirection;
+            }
+            // ─────────────────────────────────────────────────────────────────
+
+            // Add lift (Parabolic arc)
+            Vector3 loftAxis = Vector3.Cross(flatDirection, Vector3.up);
+            Vector3 launchDir = Quaternion.AngleAxis(DefaultLoftAngle, loftAxis) * flatDirection;
+
+            // Calculate final velocity
+            float clubPower = CurrentClub != null ? CurrentClub.Power : 10f;
+            return launchDir * (powerRatio * clubPower * PowerScale);
+        }
+
         private Vector3 CalculateLaunchVelocity()
         {
             Vector3 dragVector    = dragStartPosition - GetMouseWorldPos();

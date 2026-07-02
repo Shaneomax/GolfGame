@@ -14,6 +14,7 @@ namespace GolfGame.Controllers
 
         private Transform ballTransform;
         private PlayerInputController ballInput;
+        public Transform AimTargetAnchor;
 
         private void Start()
         {
@@ -78,6 +79,16 @@ namespace GolfGame.Controllers
             if (GameStateManager.Instance.CurrentState == GameStateManager.GameState.Setup)
             {
                 if (ballTransform == null) FindBall();
+                if (GameStateManager.Instance.CurrentState == GameStateManager.GameState.Aiming)
+                {
+                    // Update the anchor's position and rotation
+                    // The Camera will smoothly interpolate to this anchor automatically
+                    if (AimTargetAnchor != null && ballTransform != null && ballInput != null)
+                    {
+                        AimTargetAnchor.position = ballTransform.position;
+                        AimTargetAnchor.rotation = Quaternion.LookRotation(ballInput.FixedAimDirection);
+                    }
+                }
 
                 // If the marker has spawned, assign it to Cinemachine so it tracks it!
                 if (SetupCamera != null && ballInput != null && ballInput.ActiveTargetMarker != null)
