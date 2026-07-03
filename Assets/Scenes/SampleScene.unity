@@ -1752,6 +1752,12 @@ MonoBehaviour:
   SetupCamera: {fileID: 686554125}
   AimCamera: {fileID: 1874664565}
   AimTargetAnchor: {fileID: 1748910012}
+  PanSpeed: 20
+  ZoomSpeed: 50
+  MinZoom: 10
+  MaxZoom: 60
+  TouchPanSpeed: 0.05
+  TouchZoomSpeed: 0.05
 --- !u!4 &1776894339
 Transform:
   m_ObjectHideFlags: 0
@@ -2105,6 +2111,10 @@ PrefabInstance:
       propertyPath: ArrowIndicator
       value: 
       objectReference: {fileID: 1921582938}
+    - target: {fileID: 1638904212754295665, guid: ae8846828b186f345931718cb721baf7, type: 3}
+      propertyPath: GlobalNeedleSpeed
+      value: 0.32
+      objectReference: {fileID: 0}
     - target: {fileID: 1693968040961912129, guid: ae8846828b186f345931718cb721baf7, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0

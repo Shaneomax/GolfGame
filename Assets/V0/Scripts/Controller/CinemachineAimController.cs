@@ -149,10 +149,10 @@ namespace GolfGame.Controllers
                                 SetupCamera.transform.position = pos;
                             }
                         }
-                        else
+                        
+                        // --- PC / Editor Fallback Controls ---
+                        if (Input.touchCount == 0)
                         {
-                            // --- PC / Editor Fallback Controls ---
-                            
                             // Mouse drag to pan
                             if (Input.GetMouseButtonDown(0))
                             {
@@ -165,28 +165,33 @@ namespace GolfGame.Controllers
                                 SetupCamera.transform.position += panMove;
                                 lastMousePos = Input.mousePosition;
                             }
+                        }
 
-                            // WASD / Arrows to pan
-                            float h = Input.GetAxis("Horizontal");
-                            float v = Input.GetAxis("Vertical");
+                        // WASD / Arrows to pan
+                        float h = Input.GetAxis("Horizontal");
+                        float v = Input.GetAxis("Vertical");
+                        
+                        if (h != 0 || v != 0)
+                        {
+                            Vector3 panMove = new Vector3(h, 0f, v) * PanSpeed * Time.deltaTime;
+                            SetupCamera.transform.position += panMove;
+                        }
+
+                        // Scroll wheel to zoom (always checked so it works in Simulator)
+                        float scroll = Input.GetAxis("Mouse ScrollWheel");
+                        if (scroll == 0f && Input.mouseScrollDelta.y != 0)
+                        {
+                            scroll = Input.mouseScrollDelta.y * 0.1f;
+                        }
+
+                        if (scroll != 0f)
+                        {
+                            currentZoom -= scroll * ZoomSpeed;
+                            currentZoom = Mathf.Clamp(currentZoom, MinZoom, MaxZoom);
                             
-                            if (h != 0 || v != 0)
-                            {
-                                Vector3 panMove = new Vector3(h, 0f, v) * PanSpeed * Time.deltaTime;
-                                SetupCamera.transform.position += panMove;
-                            }
-
-                            // Scroll wheel to zoom
-                            float scroll = Input.GetAxis("Mouse ScrollWheel");
-                            if (scroll != 0f)
-                            {
-                                currentZoom -= scroll * ZoomSpeed;
-                                currentZoom = Mathf.Clamp(currentZoom, MinZoom, MaxZoom);
-                                
-                                Vector3 pos = SetupCamera.transform.position;
-                                pos.y = currentZoom;
-                                SetupCamera.transform.position = pos;
-                            }
+                            Vector3 pos = SetupCamera.transform.position;
+                            pos.y = currentZoom;
+                            SetupCamera.transform.position = pos;
                         }
                     }
                 }
