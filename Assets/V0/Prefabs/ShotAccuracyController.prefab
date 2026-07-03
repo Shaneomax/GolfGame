@@ -50,5 +50,6 @@ MonoBehaviour:
   NeedleMaxAngle: 180
   DeviationMultiplier: 22
   BaseHalfSwingDuration: 0.8
-  MaxSpeedMultiplier: 4
-  GlobalNeedleSpeed: 0.46
+  MaxSpeedMultiplier: 2
+  GlobalNeedleSpeed: 0.32
+  MaxDragSpeedBonus: 3

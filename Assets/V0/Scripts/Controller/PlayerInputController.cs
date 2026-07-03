@@ -67,6 +67,7 @@ namespace GolfGame.Controllers
         private GameObject activeTargetMarker;
         private bool isDraggingTarget = false;
         public bool IsDraggingTarget => isDraggingTarget;
+
         public GameObject ActiveTargetMarker => activeTargetMarker;
 
         #endregion
@@ -77,6 +78,7 @@ namespace GolfGame.Controllers
             ballCollider = GetComponent<Collider>();
             mainCamera = Camera.main;
             trajectoryPredictor = GetComponent<TrajectoryPredictor>();
+            AccuracyController = FindFirstObjectByType<ShotAccuracyController>();
         }
 
         private void Start()
@@ -366,15 +368,14 @@ namespace GolfGame.Controllers
             if (!isDragging) return;
             Vector3 dragVector = dragStartPosition - Input.mousePosition;
             
-            // Scaled drag to match your 3 to 8 values safely regardless of screen size
+            // Scaled drag to match your values safely regardless of screen size
             float dragMagnitude = Mathf.Clamp(GetScaledDragMagnitude(dragVector), 0f, MaxDragDistance);
 
-            // Calculate overpower amount (0 when drag is <= 5, up to 1.0 when drag reaches 8)
-            float overpowerRatio = 0f;
-            if (dragMagnitude > NormalDragDistance)
-            {
-                overpowerRatio = (dragMagnitude - NormalDragDistance) / (MaxDragDistance - NormalDragDistance);
-            }
+            // FIX: Change MinDragToShoot to NormalDragDistance so it only speeds up AFTER passing normal power
+            float overpowerRatio = Mathf.InverseLerp(NormalDragDistance, MaxDragDistance, dragMagnitude);
+
+            // Log it so you can see the dynamic values in the console while dragging!
+            Debug.Log($"[PlayerInput] Dragging... Magnitude: {dragMagnitude:F2} | Needle Speed Ratio: {overpowerRatio:F2}");
 
             if (AccuracyController != null)
             {

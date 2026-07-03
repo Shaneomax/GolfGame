@@ -19,12 +19,12 @@ namespace GolfGame.Controllers
         public float BaseHalfSwingDuration = 0.8f;
         public float MaxSpeedMultiplier = 4f;
         
-        [Tooltip("This slider WILL move on its own at runtime when you overpower your drag!")]
-        [Range(0.1f, 10f)] // Increased max range so you can clearly see it spike
-        public float GlobalNeedleSpeed = 1.0f;
+        [Tooltip("Universally speeds up or slows down the needle. Test this in the inspector while aiming!")]
+        [Range(0.1f, 3f)]
+        public float GlobalNeedleSpeed = 0.32f;
 
         [Header("Drag Power Difficulty")]
-        [Tooltip("How much extra speed is ADDED to GlobalNeedleSpeed at maximum drag.")]
+        [Tooltip("Maximum extra speed multiplier applied to the needle at maximum drag overpower.")]
         public float MaxDragSpeedBonus = 3f;
 
         public float LockedAccuracyValue { get; private set; }
@@ -32,16 +32,11 @@ namespace GolfGame.Controllers
 
         private ClubData _currentClub;
         private float _swingProgress = 0f;
+        private float _dragPowerMultiplier = 1f;
         private int _sweepDirection = 1;
-        
-        // We store your Inspector default here so we can reset it for the next shot
-        private float _baseGlobalSpeed = 1.0f;
 
         private void Start()
         {
-            // Remember whatever you set in the Inspector before the game started
-            _baseGlobalSpeed = GlobalNeedleSpeed;
-            
             if (ArrowIndicator != null) ArrowIndicator.SetActive(false);
             if (GameStateManager.Instance != null)
                 GameStateManager.Instance.OnStateEnter += OnStateEnter;
@@ -63,11 +58,9 @@ namespace GolfGame.Controllers
         {
             IsLocked = false;
             LockedAccuracyValue = 0f;
-            _swingProgress = 0.5f; 
+            _swingProgress = 0.5f; // Start the needle in the middle
             _sweepDirection = 1;
-
-            // Reset back to normal speed when a new aim phase starts
-            GlobalNeedleSpeed = _baseGlobalSpeed;
+            _dragPowerMultiplier = 1f;
 
             if (ArrowIndicator != null) ArrowIndicator.SetActive(true);
         }
@@ -79,6 +72,8 @@ namespace GolfGame.Controllers
 
         private void Update()
         {
+            // We handle the needle swing manually here every frame!
+            // This allows you to change variables in the inspector at runtime and see instant results.
             if (!IsLocked && ArrowIndicator != null && ArrowIndicator.activeSelf && NeedlePivot != null)
             {
                 float accuracyStat = _currentClub != null ? _currentClub.Accuracy : 50f;
@@ -86,13 +81,16 @@ namespace GolfGame.Controllers
                 
                 float speedMultiplier = Mathf.Lerp(1f, MaxSpeedMultiplier, t);
                 
-                // We calculate speed using GlobalNeedleSpeed directly.
-                // Since OnMouseDrag changes this variable, it updates instantly here!
-                float currentHalfDuration = BaseHalfSwingDuration / (speedMultiplier * GlobalNeedleSpeed);
+                // Combine all speed factors dynamically
+                float currentHalfDuration = BaseHalfSwingDuration / (speedMultiplier * GlobalNeedleSpeed * _dragPowerMultiplier);
                 
+                // Calculate how much progress to add this exact frame
                 float progressSpeed = 1f / currentHalfDuration;
+
+                // Move the needle
                 _swingProgress += _sweepDirection * progressSpeed * Time.deltaTime;
 
+                // Bounce back and forth between 0 and 1
                 if (_swingProgress >= 1f)
                 {
                     _swingProgress = 1f;
@@ -121,6 +119,7 @@ namespace GolfGame.Controllers
         {
             if (IsLocked) return;
             IsLocked = true;
+            
             LockedAccuracyValue = (_swingProgress - 0.5f) * 2f;
         }
 
@@ -128,16 +127,14 @@ namespace GolfGame.Controllers
         {
             IsLocked = false;
             LockedAccuracyValue = 0f;
-            GlobalNeedleSpeed = _baseGlobalSpeed; // Reset if the shot is cancelled
         }
 
         public void SetClub(ClubData club) => _currentClub = club;
 
         public void SetDragPowerMultiplier(float overpowerRatio)
         {
-            // OVERWRITE GlobalNeedleSpeed dynamically.
-            // overpowerRatio is 0.0 at Normal Drag, and scales up to 1.0 at Max Drag.
-            GlobalNeedleSpeed = _baseGlobalSpeed + (MaxDragSpeedBonus * overpowerRatio);
+            // Instantly updates the multiplier used in the Update() loop
+            _dragPowerMultiplier = Mathf.Lerp(1f, 1f + MaxDragSpeedBonus, overpowerRatio);
         }
     }
 }
