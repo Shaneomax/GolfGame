@@ -2115,6 +2115,10 @@ PrefabInstance:
       propertyPath: GlobalNeedleSpeed
       value: 0.32
       objectReference: {fileID: 0}
+    - target: {fileID: 1638904212754295665, guid: ae8846828b186f345931718cb721baf7, type: 3}
+      propertyPath: MaxDragSpeedBonus
+      value: 3
+      objectReference: {fileID: 0}
     - target: {fileID: 1693968040961912129, guid: ae8846828b186f345931718cb721baf7, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0

@@ -14,15 +14,17 @@ namespace GolfGame.Controllers
         public float NeedleMaxAngle = 180f;
 
         [Header("Shot Deviation")]
-        [Tooltip("Max angle offset. Set to 20-30 for realistic gameplay. (190 will shoot backward!)")]
         public float DeviationMultiplier = 22f;
 
         [Header("Game Balancing (Tweak These!)")]
         public float BaseHalfSwingDuration = 0.8f;
         public float MaxSpeedMultiplier = 4f;
-        [Tooltip("Universally speeds up or slows down the needle without requiring you to edit Club Data. 1 = Default, >1 = Faster, <1 = Slower.")]
         [Range(0.1f, 3f)]
-        public float GlobalNeedleSpeed = 1.0f; 
+        public float GlobalNeedleSpeed = 1.0f;
+
+        [Header("Drag Power Difficulty")]
+        [Tooltip("Maximum extra speed multiplier applied to the needle at maximum drag overpower.")]
+        public float MaxDragSpeedBonus = 3f;
 
         public float LockedAccuracyValue { get; private set; }
         public bool IsLocked { get; private set; }
@@ -30,6 +32,7 @@ namespace GolfGame.Controllers
         private Tween _needleTween;
         private ClubData _currentClub;
         private float _swingProgress = 0f;
+        private float _dragPowerMultiplier = 1f;
 
         private void Start()
         {
@@ -76,9 +79,9 @@ namespace GolfGame.Controllers
             float accuracyStat = _currentClub != null ? _currentClub.Accuracy : 50f;
             float t = 1f - Mathf.Clamp01(accuracyStat / 100f);
             
-            // Calculate speed and apply the new global tuner
             float speedMultiplier = Mathf.Lerp(1f, MaxSpeedMultiplier, t);
-            float halfDuration = BaseHalfSwingDuration / (speedMultiplier * GlobalNeedleSpeed);
+            // Overpower multiplier dynamically speeds this up
+            float halfDuration = BaseHalfSwingDuration / (speedMultiplier * GlobalNeedleSpeed * _dragPowerMultiplier);
 
             _swingProgress = 0f;
             UpdateNeedleVisuals();
@@ -106,10 +109,8 @@ namespace GolfGame.Controllers
         {
             if (IsLocked) return;
             IsLocked = true;
-
             _needleTween?.Kill();
             _needleTween = null;
-
             LockedAccuracyValue = (_swingProgress - 0.5f) * 2f;
         }
 
@@ -121,5 +122,19 @@ namespace GolfGame.Controllers
         }
 
         public void SetClub(ClubData club) => _currentClub = club;
+
+        /// <summary>
+        /// Called by PlayerInputController. overpowerRatio is 0 when drag is normal,
+        /// and scales up to 1.0 when max drag overpower is achieved.
+        /// </summary>
+        public void SetDragPowerMultiplier(float overpowerRatio)
+        {
+            _dragPowerMultiplier = Mathf.Lerp(1f, 1f + MaxDragSpeedBonus, overpowerRatio);
+
+            if (!IsLocked)
+            {
+                StartNeedleTween();
+            }
+        }
     }
 }

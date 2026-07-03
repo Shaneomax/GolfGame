@@ -155,7 +155,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5f47deec47358cd4c8af5d9108ac6a6a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerInputController
-  MaxDragDistance: 3
+  MaxDragDistance: 2
+  NormalDragDistance: 2.5
+  MinDragToShoot: 1.5
   DefaultLoftAngle: 30
   PowerScale: 0.3
   MaxDeviationAngle: 22
