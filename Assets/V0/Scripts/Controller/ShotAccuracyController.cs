@@ -1,4 +1,3 @@
-using DG.Tweening;
 using UnityEngine;
 
 namespace GolfGame.Controllers
@@ -19,23 +18,30 @@ namespace GolfGame.Controllers
         [Header("Game Balancing (Tweak These!)")]
         public float BaseHalfSwingDuration = 0.8f;
         public float MaxSpeedMultiplier = 4f;
-        [Range(0.1f, 3f)]
+        
+        [Tooltip("This slider WILL move on its own at runtime when you overpower your drag!")]
+        [Range(0.1f, 10f)] // Increased max range so you can clearly see it spike
         public float GlobalNeedleSpeed = 1.0f;
 
         [Header("Drag Power Difficulty")]
-        [Tooltip("Maximum extra speed multiplier applied to the needle at maximum drag overpower.")]
+        [Tooltip("How much extra speed is ADDED to GlobalNeedleSpeed at maximum drag.")]
         public float MaxDragSpeedBonus = 3f;
 
         public float LockedAccuracyValue { get; private set; }
         public bool IsLocked { get; private set; }
 
-        private Tween _needleTween;
         private ClubData _currentClub;
         private float _swingProgress = 0f;
-        private float _dragPowerMultiplier = 1f;
+        private int _sweepDirection = 1;
+        
+        // We store your Inspector default here so we can reset it for the next shot
+        private float _baseGlobalSpeed = 1.0f;
 
         private void Start()
         {
+            // Remember whatever you set in the Inspector before the game started
+            _baseGlobalSpeed = GlobalNeedleSpeed;
+            
             if (ArrowIndicator != null) ArrowIndicator.SetActive(false);
             if (GameStateManager.Instance != null)
                 GameStateManager.Instance.OnStateEnter += OnStateEnter;
@@ -43,7 +49,6 @@ namespace GolfGame.Controllers
 
         private void OnDestroy()
         {
-            _needleTween?.Kill();
             if (GameStateManager.Instance != null)
                 GameStateManager.Instance.OnStateEnter -= OnStateEnter;
         }
@@ -58,42 +63,49 @@ namespace GolfGame.Controllers
         {
             IsLocked = false;
             LockedAccuracyValue = 0f;
-            _swingProgress = 0f;
+            _swingProgress = 0.5f; 
+            _sweepDirection = 1;
+
+            // Reset back to normal speed when a new aim phase starts
+            GlobalNeedleSpeed = _baseGlobalSpeed;
 
             if (ArrowIndicator != null) ArrowIndicator.SetActive(true);
-            StartNeedleTween();
         }
 
         private void DeactivateArrow()
         {
-            _needleTween?.Kill();
-            _needleTween = null;
             if (ArrowIndicator != null) ArrowIndicator.SetActive(false);
         }
 
-        private void StartNeedleTween()
+        private void Update()
         {
-            _needleTween?.Kill();
-            if (NeedlePivot == null) return;
-
-            float accuracyStat = _currentClub != null ? _currentClub.Accuracy : 50f;
-            float t = 1f - Mathf.Clamp01(accuracyStat / 100f);
-            
-            float speedMultiplier = Mathf.Lerp(1f, MaxSpeedMultiplier, t);
-            // Overpower multiplier dynamically speeds this up
-            float halfDuration = BaseHalfSwingDuration / (speedMultiplier * GlobalNeedleSpeed * _dragPowerMultiplier);
-
-            _swingProgress = 0f;
-            UpdateNeedleVisuals();
-
-            _needleTween = DOTween.To(() => _swingProgress, x => 
+            if (!IsLocked && ArrowIndicator != null && ArrowIndicator.activeSelf && NeedlePivot != null)
             {
-                _swingProgress = x;
+                float accuracyStat = _currentClub != null ? _currentClub.Accuracy : 50f;
+                float t = 1f - Mathf.Clamp01(accuracyStat / 100f);
+                
+                float speedMultiplier = Mathf.Lerp(1f, MaxSpeedMultiplier, t);
+                
+                // We calculate speed using GlobalNeedleSpeed directly.
+                // Since OnMouseDrag changes this variable, it updates instantly here!
+                float currentHalfDuration = BaseHalfSwingDuration / (speedMultiplier * GlobalNeedleSpeed);
+                
+                float progressSpeed = 1f / currentHalfDuration;
+                _swingProgress += _sweepDirection * progressSpeed * Time.deltaTime;
+
+                if (_swingProgress >= 1f)
+                {
+                    _swingProgress = 1f;
+                    _sweepDirection = -1;
+                }
+                else if (_swingProgress <= 0f)
+                {
+                    _swingProgress = 0f;
+                    _sweepDirection = 1;
+                }
+
                 UpdateNeedleVisuals();
-            }, 1f, halfDuration)
-            .SetEase(Ease.InOutSine)
-            .SetLoops(-1, LoopType.Yoyo)
-            .SetUpdate(UpdateType.Normal);
+            }
         }
 
         private void UpdateNeedleVisuals()
@@ -109,8 +121,6 @@ namespace GolfGame.Controllers
         {
             if (IsLocked) return;
             IsLocked = true;
-            _needleTween?.Kill();
-            _needleTween = null;
             LockedAccuracyValue = (_swingProgress - 0.5f) * 2f;
         }
 
@@ -118,23 +128,16 @@ namespace GolfGame.Controllers
         {
             IsLocked = false;
             LockedAccuracyValue = 0f;
-            StartNeedleTween();
+            GlobalNeedleSpeed = _baseGlobalSpeed; // Reset if the shot is cancelled
         }
 
         public void SetClub(ClubData club) => _currentClub = club;
 
-        /// <summary>
-        /// Called by PlayerInputController. overpowerRatio is 0 when drag is normal,
-        /// and scales up to 1.0 when max drag overpower is achieved.
-        /// </summary>
         public void SetDragPowerMultiplier(float overpowerRatio)
         {
-            _dragPowerMultiplier = Mathf.Lerp(1f, 1f + MaxDragSpeedBonus, overpowerRatio);
-
-            if (!IsLocked)
-            {
-                StartNeedleTween();
-            }
+            // OVERWRITE GlobalNeedleSpeed dynamically.
+            // overpowerRatio is 0.0 at Normal Drag, and scales up to 1.0 at Max Drag.
+            GlobalNeedleSpeed = _baseGlobalSpeed + (MaxDragSpeedBonus * overpowerRatio);
         }
     }
 }
