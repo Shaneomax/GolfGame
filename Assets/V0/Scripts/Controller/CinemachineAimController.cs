@@ -21,8 +21,13 @@ namespace GolfGame.Controllers
         public float ZoomSpeed = 50f;
         public float MinZoom = 10f;
         public float MaxZoom = 60f;
+        [Tooltip("Speed of touch and mouse drag panning.")]
+        public float TouchPanSpeed = 0.05f;
+        [Tooltip("Speed of touch pinch zooming.")]
+        public float TouchZoomSpeed = 0.05f;
 
         private float currentZoom = 30f;
+        private Vector3 lastMousePos;
 
         private void Start()
         {
@@ -106,26 +111,83 @@ namespace GolfGame.Controllers
                 }
                 else if (_setupCameraPositioned && SetupCamera != null)
                 {
-                    // Panning using WASD / Arrow keys
-                    float h = Input.GetAxis("Horizontal");
-                    float v = Input.GetAxis("Vertical");
-                    
-                    if (h != 0 || v != 0)
-                    {
-                        Vector3 panMove = new Vector3(h, 0f, v) * PanSpeed * Time.deltaTime;
-                        SetupCamera.transform.position += panMove;
-                    }
+                    bool isDraggingTarget = (ballInput != null && ballInput.IsDraggingTarget);
 
-                    // Zooming using Scroll Wheel
-                    float scroll = Input.GetAxis("Mouse ScrollWheel");
-                    if (scroll != 0f)
+                    if (!isDraggingTarget)
                     {
-                        currentZoom -= scroll * ZoomSpeed;
-                        currentZoom = Mathf.Clamp(currentZoom, MinZoom, MaxZoom);
-                        
-                        Vector3 pos = SetupCamera.transform.position;
-                        pos.y = currentZoom;
-                        SetupCamera.transform.position = pos;
+                        if (Input.touchCount > 0)
+                        {
+                            // --- Touch Controls (Mobile) ---
+                            if (Input.touchCount == 1)
+                            {
+                                Touch touch = Input.GetTouch(0);
+                                if (touch.phase == TouchPhase.Moved)
+                                {
+                                    Vector2 delta = touch.deltaPosition;
+                                    Vector3 panMove = new Vector3(-delta.x, 0f, -delta.y) * TouchPanSpeed;
+                                    SetupCamera.transform.position += panMove;
+                                }
+                            }
+                            else if (Input.touchCount == 2)
+                            {
+                                Touch touchZero = Input.GetTouch(0);
+                                Touch touchOne = Input.GetTouch(1);
+
+                                Vector2 touchZeroPrevPos = touchZero.position - touchZero.deltaPosition;
+                                Vector2 touchOnePrevPos = touchOne.position - touchOne.deltaPosition;
+
+                                float prevTouchDeltaMag = (touchZeroPrevPos - touchOnePrevPos).magnitude;
+                                float touchDeltaMag = (touchZero.position - touchOne.position).magnitude;
+
+                                float deltaMagnitudeDiff = prevTouchDeltaMag - touchDeltaMag;
+
+                                currentZoom += deltaMagnitudeDiff * TouchZoomSpeed;
+                                currentZoom = Mathf.Clamp(currentZoom, MinZoom, MaxZoom);
+
+                                Vector3 pos = SetupCamera.transform.position;
+                                pos.y = currentZoom;
+                                SetupCamera.transform.position = pos;
+                            }
+                        }
+                        else
+                        {
+                            // --- PC / Editor Fallback Controls ---
+                            
+                            // Mouse drag to pan
+                            if (Input.GetMouseButtonDown(0))
+                            {
+                                lastMousePos = Input.mousePosition;
+                            }
+                            else if (Input.GetMouseButton(0))
+                            {
+                                Vector3 delta = Input.mousePosition - lastMousePos;
+                                Vector3 panMove = new Vector3(-delta.x, 0f, -delta.y) * TouchPanSpeed;
+                                SetupCamera.transform.position += panMove;
+                                lastMousePos = Input.mousePosition;
+                            }
+
+                            // WASD / Arrows to pan
+                            float h = Input.GetAxis("Horizontal");
+                            float v = Input.GetAxis("Vertical");
+                            
+                            if (h != 0 || v != 0)
+                            {
+                                Vector3 panMove = new Vector3(h, 0f, v) * PanSpeed * Time.deltaTime;
+                                SetupCamera.transform.position += panMove;
+                            }
+
+                            // Scroll wheel to zoom
+                            float scroll = Input.GetAxis("Mouse ScrollWheel");
+                            if (scroll != 0f)
+                            {
+                                currentZoom -= scroll * ZoomSpeed;
+                                currentZoom = Mathf.Clamp(currentZoom, MinZoom, MaxZoom);
+                                
+                                Vector3 pos = SetupCamera.transform.position;
+                                pos.y = currentZoom;
+                                SetupCamera.transform.position = pos;
+                            }
+                        }
                     }
                 }
                 if (GameStateManager.Instance.CurrentState == GameStateManager.GameState.Aiming)
