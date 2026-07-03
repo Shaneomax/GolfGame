@@ -339,6 +339,7 @@ namespace GolfGame.Controllers
 
         #region Initialization
 
+
         public void ApplyBallData()
         {
             if (CurrentBall != null && rb != null)

@@ -16,6 +16,14 @@ namespace GolfGame.Controllers
         private PlayerInputController ballInput;
         public Transform AimTargetAnchor;
 
+        [Header("Setup Camera Controls")]
+        public float PanSpeed = 20f;
+        public float ZoomSpeed = 50f;
+        public float MinZoom = 10f;
+        public float MaxZoom = 60f;
+
+        private float currentZoom = 30f;
+
         private void Start()
         {
             if (GameStateManager.Instance != null)
@@ -86,14 +94,39 @@ namespace GolfGame.Controllers
                 if (!_setupCameraPositioned && SetupCamera != null && ballInput != null && ballInput.ActiveTargetMarker != null)
                 {
                     Vector3 markerPos = ballInput.ActiveTargetMarker.transform.position;
+                    currentZoom = 30f;
                     
                     // Position camera directly above the marker
-                    SetupCamera.transform.position = markerPos + Vector3.up * 30f;
+                    SetupCamera.transform.position = markerPos + Vector3.up * currentZoom;
                     
                     // Look straight down
                     SetupCamera.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
 
                     _setupCameraPositioned = true;
+                }
+                else if (_setupCameraPositioned && SetupCamera != null)
+                {
+                    // Panning using WASD / Arrow keys
+                    float h = Input.GetAxis("Horizontal");
+                    float v = Input.GetAxis("Vertical");
+                    
+                    if (h != 0 || v != 0)
+                    {
+                        Vector3 panMove = new Vector3(h, 0f, v) * PanSpeed * Time.deltaTime;
+                        SetupCamera.transform.position += panMove;
+                    }
+
+                    // Zooming using Scroll Wheel
+                    float scroll = Input.GetAxis("Mouse ScrollWheel");
+                    if (scroll != 0f)
+                    {
+                        currentZoom -= scroll * ZoomSpeed;
+                        currentZoom = Mathf.Clamp(currentZoom, MinZoom, MaxZoom);
+                        
+                        Vector3 pos = SetupCamera.transform.position;
+                        pos.y = currentZoom;
+                        SetupCamera.transform.position = pos;
+                    }
                 }
                 if (GameStateManager.Instance.CurrentState == GameStateManager.GameState.Aiming)
                 {
