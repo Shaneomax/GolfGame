@@ -353,7 +353,24 @@ namespace GolfGame.Controllers
             rb.linearVelocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
             rb.Sleep(); 
-            GameStateManager.Instance.ChangeState(GameStateManager.GameState.Aiming);
+            
+            GameStateManager.Instance.ChangeState(GameStateManager.GameState.Setup);
+        }
+        private void OnTriggerEnter(Collider other)
+        {
+            // Check if the ball hit the flag/hole
+            if (other.CompareTag("Flag"))
+            {
+                Debug.Log("[PlayerInput] Reached the flag! Ending the loop.");
+                
+                // Instantly stop the ball from rolling further
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+                rb.Sleep();
+                
+                // Break the loop and transition to the Resolution state
+                GameStateManager.Instance.ChangeState(GameStateManager.GameState.Resolution);
+            }
         }
 
         private void OnMouseDown()

@@ -13,7 +13,9 @@ namespace GolfGame.Controllers
         public CinemachineCamera AimCamera;
 
         private Transform ballTransform;
+        private Transform arrowTransform;
         private PlayerInputController ballInput;
+        private PlayerInputController arrowInput;
         public Transform AimTargetAnchor;
 
         [Header("Setup Camera Controls")]
@@ -53,6 +55,13 @@ namespace GolfGame.Controllers
                 ballTransform = ball.transform;
                 ballInput = ball.GetComponent<PlayerInputController>();
             }
+
+            GameObject arrow = GameObject.FindWithTag("Arrow");
+            if (arrow != null)
+            {
+                arrowTransform = arrow.transform;
+                arrowInput = arrow.GetComponent<PlayerInputController>();
+            }
         }
 
         private bool _setupCameraPositioned = false;
@@ -71,13 +80,13 @@ namespace GolfGame.Controllers
             {
                 if (SetupCamera != null) SetupCamera.Priority = 0;
                 
-                if (AimCamera != null && ballTransform != null)
+                if (AimCamera != null && ballTransform != null && arrowTransform != null)
                 {
                     AimCamera.Priority = 10;
                     
                     // Keep AimCamera locked to the ball
                     AimCamera.Follow = ballTransform;
-                    AimCamera.LookAt = ballTransform;
+                    AimCamera.LookAt = arrowTransform;
                 }
             }
             else

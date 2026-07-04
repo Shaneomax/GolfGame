@@ -79,38 +79,38 @@ namespace GolfGame.Controllers
 
         #region Simulation Logic
 
-        /// <summary>
-        /// Spawns or repositions the golf ball at the tee and initializes its data.
-        /// </summary>
         private void InitializeTeeOff()
         {
             if (CurrentBall != null)
-                Debug.Log($"[Simulation] Spawning {CurrentBall.BallName} at the Tee...");
+                Debug.Log($"[Simulation] Spawning {CurrentBall.BallName} at the Tee..."); 
             else
-                Debug.LogWarning("[Simulation] CurrentBall data is missing!");
+                Debug.LogWarning("[Simulation] CurrentBall data is missing!"); 
 
             if (activeBall == null)
             {
+                // First shot: Spawn the ball at the tee
                 activeBall = Instantiate(BallPrefab, TeeTransform.position, Quaternion.identity);
                 activeBallRb = activeBall.GetComponent<Rigidbody>();
             }
             else
             {
-                activeBallRb.linearVelocity = Vector3.zero;
-                activeBallRb.angularVelocity = Vector3.zero;
-                activeBall.transform.position = TeeTransform.position;
+                // Subsequent shots: Just ensure the ball is completely stopped
+                activeBallRb.linearVelocity = Vector3.zero; 
+                activeBallRb.angularVelocity = Vector3.zero; 
+                
+                // ❌ REMOVE THIS LINE so the ball doesn't teleport back to the start!
+                // activeBall.transform.position = TeeTransform.position; 
             }
 
             if (CurrentBall != null)
             {
                 activeBallRb.mass = CurrentBall.Mass;
-                
                 PlayerInputController inputController = activeBall.GetComponent<PlayerInputController>();
                 if (inputController != null)
                 {
-                    inputController.CurrentBall = CurrentBall;
+                    inputController.CurrentBall = CurrentBall; 
                     inputController.CurrentClub = CurrentClub;
-                    inputController.ApplyBallData();
+                    inputController.ApplyBallData(); 
                 }
             }
         }
