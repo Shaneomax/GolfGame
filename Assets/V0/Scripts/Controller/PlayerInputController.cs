@@ -43,6 +43,10 @@ namespace GolfGame.Controllers
         public GameObject TargetMarkerPrefab;
         public float MaxAimAngle = 45f;
 
+        [Header("Level References")]
+        [Tooltip("Drag the hole/flag Transform here in the Inspector.")]
+        public Transform FlagTransform;
+
         #endregion
 
         #region Private Fields
@@ -153,7 +157,25 @@ namespace GolfGame.Controllers
             if (TargetMarkerPrefab != null && activeTargetMarker == null)
             {
                 float maxRange = CalculateMaxRange();
-                Vector3 spawnPos = transform.position + fixedAimDirection * maxRange;
+                float targetDistance = maxRange * 0.7f; // Default to 70% of max range
+                
+                // Safely use the Inspector-assigned Flag
+                if (FlagTransform != null)
+                {
+                    Vector3 toFlag = FlagTransform.position - transform.position;
+                    toFlag.y = 0f; // Keep it on a flat plane
+                    
+                    // Aim directly at the flag
+                    fixedAimDirection = toFlag.normalized;
+                    
+                    // If the flag is closer than our 70% distance, snap the marker to the flag!
+                    if (toFlag.magnitude < targetDistance)
+                    {
+                        targetDistance = toFlag.magnitude;
+                    }
+                }
+
+                Vector3 spawnPos = transform.position + fixedAimDirection * targetDistance;
                 spawnPos.y = 0f;
                 activeTargetMarker = Instantiate(TargetMarkerPrefab, spawnPos, Quaternion.identity);
             }
@@ -172,10 +194,29 @@ namespace GolfGame.Controllers
             if (activeTargetMarker != null)
             {
                 float maxRange = CalculateMaxRange();
-                Vector3 newPos = transform.position + fixedAimDirection * maxRange;
+                float targetDistance = maxRange * 0.7f; // Default to 70% of max range
+                
+                // Safely use the Inspector-assigned Flag
+                if (FlagTransform != null)
+                {
+                    Vector3 toFlag = FlagTransform.position - transform.position;
+                    toFlag.y = 0f;
+                    
+                    fixedAimDirection = toFlag.normalized;
+                    
+                    if (toFlag.magnitude < targetDistance)
+                    {
+                        targetDistance = toFlag.magnitude;
+                    }
+                }
+
+                Vector3 newPos = transform.position + fixedAimDirection * targetDistance;
                 newPos.y = 0f;
                 activeTargetMarker.transform.position = newPos;
                 activeTargetMarker.SetActive(true);
+                
+                // Update the initial aim so dragging limits still work correctly
+                initialAimDirection = fixedAimDirection; 
             }
         }
 
