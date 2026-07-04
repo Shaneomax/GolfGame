@@ -106,7 +106,7 @@ namespace GolfGame.Controllers
             if (activeTargetMarker != null) Destroy(activeTargetMarker);
         }
 
-       private void OnStateEnter(GameStateManager.GameState newState)
+        private void OnStateEnter(GameStateManager.GameState newState)
         {
             if (newState == GameStateManager.GameState.Setup)
             {
@@ -305,9 +305,9 @@ namespace GolfGame.Controllers
             PhysicsMaterial bounceMat = new PhysicsMaterial("BallPhysics")
             {
                 bounciness = CurrentBall.Bounciness,
-                dynamicFriction = 0.4f,
-                staticFriction = 0.4f,
-                bounceCombine = PhysicsMaterialCombine.Maximum,
+                dynamicFriction = 0.6f,
+                staticFriction = 0.6f,
+                bounceCombine = PhysicsMaterialCombine.Average,
                 frictionCombine = PhysicsMaterialCombine.Average
             };
             ballCollider.material = bounceMat;
