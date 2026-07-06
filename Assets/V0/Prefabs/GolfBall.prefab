@@ -122,8 +122,8 @@ LineRenderer:
       m_RotationOrder: 4
     colorGradient:
       serializedVersion: 2
-      key0: {r: 0.15120122, g: 0.13171947, b: 0.754717, a: 1}
-      key1: {r: 0.15120122, g: 0.13171947, b: 0.754717, a: 1}
+      key0: {r: 1, g: 1, b: 1, a: 1}
+      key1: {r: 1, g: 1, b: 1, a: 1}
       key2: {r: 0, g: 0, b: 0, a: 0}
       key3: {r: 0, g: 0, b: 0, a: 0}
       key4: {r: 0, g: 0, b: 0, a: 0}
@@ -335,6 +335,10 @@ MonoBehaviour:
   MaxAimAngle: 45
   MinTargetDistance: 80
   FlagTransform: {fileID: 2418715018993201027, guid: bd4e6f0bc98914d439e9d9c1deae8654, type: 3}
+  LowForceColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+  NormalForceColor: {r: 0, g: 1, b: 0, a: 1}
+  ExtremeForceColor: {r: 1, g: 0, b: 0, a: 1}
+  ExtremeForceThreshold: 0.5
 --- !u!120 &284888292915245395
 LineRenderer:
   serializedVersion: 3

@@ -80,6 +80,14 @@ namespace GolfGame.Controllers
         private Vector3 initialAimDirection = Vector3.forward;
         private GameObject activeTargetMarker;
         private bool isDraggingTarget = false;
+        [Header("Line Dynamic Colors")]
+        public Color LowForceColor = Color.yellow;
+        public Color NormalForceColor = Color.green;
+        public Color ExtremeForceColor = Color.red;
+
+        [Tooltip("At what overpower ratio (0.0 to 1.0) should the line turn Red?")]
+        [Range(0.1f, 1.0f)]
+        public float ExtremeForceThreshold = 0.5f;
         public bool IsDraggingTarget => isDraggingTarget;
 
         public GameObject ActiveTargetMarker => activeTargetMarker;
@@ -439,12 +447,14 @@ namespace GolfGame.Controllers
             isDragging = true;
             dragStartPosition = Input.mousePosition; 
             
-            // NEW: Enable and initialize the pull-back line
             if (DragLineRenderer != null)
             {
                 DragLineRenderer.enabled = true;
                 DragLineRenderer.SetPosition(0, transform.position);
                 DragLineRenderer.SetPosition(1, transform.position);
+                
+                // Initialize with the low force color right when touch begins
+                UpdateDragLineColor(LowForceColor);
             }
         }
 
@@ -461,16 +471,29 @@ namespace GolfGame.Controllers
                 AccuracyController.SetDragPowerMultiplier(overpowerRatio);
             }
 
-            // NEW: Draw the elastic pull-back line
+            // --- DYNAMIC COLOR LOGIC ---
+            Color activeColor = LowForceColor; // Defaults to yellow
+
+            // Check if drag passes the minimum threshold to actually take a shot
+            if (dragMagnitude >= MinDragToShoot) 
+            {
+                if (overpowerRatio >= ExtremeForceThreshold)
+                {
+                    activeColor = ExtremeForceColor; // Extreme pull back (Red)
+                }
+                else
+                {
+                    activeColor = NormalForceColor; // Safe normal shot zone (Green)
+                }
+            }
+            
+            UpdateDragLineColor(activeColor);
+
+            // Draw the elastic pull-back line
             if (DragLineRenderer != null)
             {
-                // Draw the line in the exact opposite direction of where we are aiming
                 Vector3 visualPullBackDir = -FixedAimDirection;
-                
-                // Calculate the end point in the 3D world based on drag magnitude
                 Vector3 endPoint = transform.position + (visualPullBackDir * (dragMagnitude * DragVisualMultiplier));
-                
-                // Keep the line flat on the ground level of the ball
                 endPoint.y = transform.position.y;
                 
                 DragLineRenderer.SetPosition(0, transform.position);
@@ -521,6 +544,19 @@ namespace GolfGame.Controllers
             {
                 if (AccuracyController != null) AccuracyController.ResetLock();
             }
+        }
+
+        private void UpdateDragLineColor(Color baseColor)
+        {
+            if (DragLineRenderer == null) return;
+
+            // Creates a smooth gradient that fades out to 0 alpha at the end of the line
+            Gradient gradient = new Gradient();
+            gradient.SetKeys(
+                new GradientColorKey[] { new GradientColorKey(baseColor, 0.0f), new GradientColorKey(baseColor, 1.0f) },
+                new GradientAlphaKey[] { new GradientAlphaKey(150f / 255f, 0.0f), new GradientAlphaKey(0.0f, 1.0f) }
+            );
+            DragLineRenderer.colorGradient = gradient;
         }
 
         private Vector3 CalculateDeviatedShotVelocity(Vector3 dragVector)
