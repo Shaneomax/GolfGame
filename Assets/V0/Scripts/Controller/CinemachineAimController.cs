@@ -238,22 +238,26 @@ namespace GolfGame.Controllers
             {
                 if (AimCamera != null && ballTransform != null && ballInput != null)
                 {
+                    // 1. Start with the input direction from your player controller
                     Vector3 aimDir = ballInput.FixedAimDirection;
                     
-                    if (ballInput.FlagTransform != null)
+                    // 2. UPDATED: Track the ActiveTargetMarker instead of the FlagTransform
+                    if (ballInput.ActiveTargetMarker != null)
                     {
-                        Vector3 toFlag = ballInput.FlagTransform.position - ballTransform.position;
-                        toFlag.y = 0f; 
+                        Vector3 toMarker = ballInput.ActiveTargetMarker.transform.position - ballTransform.position;
+                        toMarker.y = 0f; // Keep the look-at horizontal so the camera doesn't tilt up/down
                         
-                        if (toFlag.sqrMagnitude > 0.001f)
+                        if (toMarker.sqrMagnitude > 0.001f)
                         {
-                            aimDir = toFlag.normalized;
+                            aimDir = toMarker.normalized;
                         }
                     }
 
+                    // 3. Position the camera 5 units behind the ball and 2 units up
                     Vector3 camPos = ballTransform.position - (aimDir * 5f) + (Vector3.up * 2f);
-                    AimCamera.transform.position = camPos;
                     
+                    // 4. Update the camera transform
+                    AimCamera.transform.position = camPos;
                     AimCamera.transform.rotation = Quaternion.LookRotation(aimDir);
                 }
             }
