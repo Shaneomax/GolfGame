@@ -26,6 +26,13 @@ namespace GolfGame.Controllers
         [Tooltip("Maximum sideways deviation (in degrees) applied to a shot when missed.")]
         public float MaxDeviationAngle = 22f;
 
+        [Header("Visuals")]
+        [Tooltip("Line Renderer used to show the elastic pull-back connection.")]
+        public LineRenderer DragLineRenderer;
+
+        [Tooltip("Multiplier for how far the visual line stretches in world space per drag unit.")]
+        public float DragVisualMultiplier = 0.5f;
+
         [Header("Physics Modifiers")]
         public float GroundLinearDamping = 0.15f;
         public float GroundAngularDamping = 0.1f;
@@ -431,6 +438,14 @@ namespace GolfGame.Controllers
             if (GameStateManager.Instance.CurrentState != GameStateManager.GameState.Aiming) return;
             isDragging = true;
             dragStartPosition = Input.mousePosition; 
+            
+            // NEW: Enable and initialize the pull-back line
+            if (DragLineRenderer != null)
+            {
+                DragLineRenderer.enabled = true;
+                DragLineRenderer.SetPosition(0, transform.position);
+                DragLineRenderer.SetPosition(1, transform.position);
+            }
         }
 
         private void OnMouseDrag()
@@ -438,18 +453,28 @@ namespace GolfGame.Controllers
             if (!isDragging) return;
             Vector3 dragVector = dragStartPosition - Input.mousePosition;
             
-            // Scaled drag to match your values safely regardless of screen size
             float dragMagnitude = Mathf.Clamp(GetScaledDragMagnitude(dragVector), 0f, MaxDragDistance);
-
-            // FIX: Change MinDragToShoot to NormalDragDistance so it only speeds up AFTER passing normal power
             float overpowerRatio = Mathf.InverseLerp(NormalDragDistance, MaxDragDistance, dragMagnitude);
-
-            // Log it so you can see the dynamic values in the console while dragging!
-            Debug.Log($"[PlayerInput] Dragging... Magnitude: {dragMagnitude:F2} | Needle Speed Ratio: {overpowerRatio:F2}");
 
             if (AccuracyController != null)
             {
                 AccuracyController.SetDragPowerMultiplier(overpowerRatio);
+            }
+
+            // NEW: Draw the elastic pull-back line
+            if (DragLineRenderer != null)
+            {
+                // Draw the line in the exact opposite direction of where we are aiming
+                Vector3 visualPullBackDir = -FixedAimDirection;
+                
+                // Calculate the end point in the 3D world based on drag magnitude
+                Vector3 endPoint = transform.position + (visualPullBackDir * (dragMagnitude * DragVisualMultiplier));
+                
+                // Keep the line flat on the ground level of the ball
+                endPoint.y = transform.position.y;
+                
+                DragLineRenderer.SetPosition(0, transform.position);
+                DragLineRenderer.SetPosition(1, endPoint);
             }
         }
 
@@ -457,6 +482,12 @@ namespace GolfGame.Controllers
         {
             if (!isDragging) return;
             isDragging = false;
+
+            // NEW: Hide the pull-back line when the ball is released
+            if (DragLineRenderer != null)
+            {
+                DragLineRenderer.enabled = false;
+            }
 
             Vector3 dragVector = dragStartPosition - Input.mousePosition;
             float dragMagnitude = GetScaledDragMagnitude(dragVector);
