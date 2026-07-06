@@ -98,8 +98,6 @@ namespace GolfGame.Controllers
                 activeBallRb.linearVelocity = Vector3.zero; 
                 activeBallRb.angularVelocity = Vector3.zero; 
                 
-                // ❌ REMOVE THIS LINE so the ball doesn't teleport back to the start!
-                // activeBall.transform.position = TeeTransform.position; 
             }
 
             if (CurrentBall != null)

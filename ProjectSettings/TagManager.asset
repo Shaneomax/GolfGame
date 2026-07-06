@@ -5,6 +5,8 @@ TagManager:
   serializedVersion: 3
   tags:
   - Mud
+  - Arrow
+  - Flag
   layers:
   - Default
   - TransparentFX

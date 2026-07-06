@@ -170,6 +170,7 @@ MonoBehaviour:
   AccuracyController: {fileID: 1638904212754295665, guid: ae8846828b186f345931718cb721baf7, type: 3}
   TargetMarkerPrefab: {fileID: 4578203350107692312, guid: 65e18981ed05e594b838df9c564cd78a, type: 3}
   MaxAimAngle: 45
+  FlagTransform: {fileID: 2418715018993201027, guid: bd4e6f0bc98914d439e9d9c1deae8654, type: 3}
 --- !u!120 &284888292915245395
 LineRenderer:
   serializedVersion: 3
