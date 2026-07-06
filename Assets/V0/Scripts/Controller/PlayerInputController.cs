@@ -42,6 +42,9 @@ namespace GolfGame.Controllers
         public ShotAccuracyController AccuracyController;
         public GameObject TargetMarkerPrefab;
         public float MaxAimAngle = 45f;
+        
+        [Tooltip("The minimum allowed distance from the ball to the target marker.")]
+        public float MinTargetDistance = 3f; // <-- NEW MIN DISTANCE VARIABLE
 
         [Header("Level References")]
         [Tooltip("Drag the hole/flag Transform here in the Inspector.")]
@@ -175,6 +178,9 @@ namespace GolfGame.Controllers
                     }
                 }
 
+                // Clamp the spawn distance between min and max
+                targetDistance = Mathf.Clamp(targetDistance, MinTargetDistance, maxRange);
+
                 Vector3 spawnPos = transform.position + fixedAimDirection * targetDistance;
                 spawnPos.y = 0f;
                 activeTargetMarker = Instantiate(TargetMarkerPrefab, spawnPos, Quaternion.identity);
@@ -209,6 +215,9 @@ namespace GolfGame.Controllers
                         targetDistance = toFlag.magnitude;
                     }
                 }
+
+                // Clamp the reposition distance between min and max
+                targetDistance = Mathf.Clamp(targetDistance, MinTargetDistance, maxRange);
 
                 Vector3 newPos = transform.position + fixedAimDirection * targetDistance;
                 newPos.y = 0f;
@@ -254,7 +263,10 @@ namespace GolfGame.Controllers
                         float clampedAngle = Mathf.Clamp(signedAngle, -MaxAimAngle, MaxAimAngle);
 
                         Vector3 testDir = Quaternion.AngleAxis(clampedAngle, Vector3.up) * initialAimDirection;
-                        float testDist = Mathf.Min(horizontalDiff.magnitude, maxRange);
+                        
+                        // CLAMP DISTANCE BETWEEN MIN AND MAX HERE
+                        float testDist = Mathf.Clamp(horizontalDiff.magnitude, MinTargetDistance, maxRange);
+                        
                         Vector3 testHitPoint = transform.position + testDir * testDist;
                         testHitPoint.y = 0f;
 
