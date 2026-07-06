@@ -12,6 +12,10 @@ namespace GolfGame.Controllers
         [Tooltip("The camera used for the behind-the-ball Aiming phase.")]
         public CinemachineCamera AimCamera;
 
+        // NEW: Added the Flight Camera reference
+        [Tooltip("The camera used to follow the ball during the Flight phase.")]
+        public CinemachineCamera FlightCamera;
+
         private Transform ballTransform;
         private Transform arrowTransform;
         private PlayerInputController ballInput;
@@ -31,7 +35,6 @@ namespace GolfGame.Controllers
         private Vector3 lastMousePos;
         private bool _setupCameraPositioned = false;
 
-        // --- Added to track your manual Editor setup ---
         private Vector3 _localCameraOffset;
         private Quaternion _localCameraRotation;
         private bool _hasSavedManualSetup = false;
@@ -73,29 +76,37 @@ namespace GolfGame.Controllers
         {
             FindBall();
 
+            // NEW: Reset all camera priorities to 0 first to prevent conflicts
+            if (SetupCamera != null) SetupCamera.Priority = 0;
+            if (AimCamera != null) AimCamera.Priority = 0;
+            if (FlightCamera != null) FlightCamera.Priority = 0;
+
             if (newState == GameStateManager.GameState.Setup)
             {
                 _setupCameraPositioned = false;
                 if (SetupCamera != null) SetupCamera.Priority = 10;
-                if (AimCamera != null) AimCamera.Priority = 0;
             }
             else if (newState == GameStateManager.GameState.Aiming)
             {
-                if (SetupCamera != null) SetupCamera.Priority = 0;
-                
-                if (AimCamera != null && ballTransform != null && arrowTransform != null)
+                if (AimCamera != null && ballTransform != null)
                 {
                     AimCamera.Priority = 10;
                     
-                    // Keep AimCamera locked to the ball
-                    AimCamera.Follow = ballTransform;
-                    AimCamera.LookAt = arrowTransform;
+                    AimCamera.Follow = null;
+                    AimCamera.LookAt = null;
                 }
             }
-            else
+            // NEW: Added logic for the Flight state
+            else if (newState == GameStateManager.GameState.Flight)
             {
-                if (SetupCamera != null) SetupCamera.Priority = 0;
-                if (AimCamera != null) AimCamera.Priority = 0;
+                if (FlightCamera != null && ballTransform != null)
+                {
+                    FlightCamera.Priority = 10;
+                    
+                    // Assign the ball to the Flight Camera so Cinemachine automatically handles tracking
+                    FlightCamera.Follow = ballTransform;
+                    FlightCamera.LookAt = ballTransform;
+                }
             }
         }
 
@@ -113,28 +124,22 @@ namespace GolfGame.Controllers
                     Vector3 markerPos = ballInput.ActiveTargetMarker.transform.position;
                     Vector3 ballPos = ballTransform.position;
                     
-                    // Calculate the flat direction from the ball to the target marker
                     Vector3 aimDir = (markerPos - ballPos).normalized;
                     aimDir.y = 0f; 
                     if (aimDir.sqrMagnitude < 0.001f) aimDir = Vector3.forward;
 
-                    // Create a rotation that points exactly down the aim line
                     Quaternion aimRotation = Quaternion.LookRotation(aimDir);
 
-                    // If we haven't saved your manual Editor setup yet, do it now
                     if (!_hasSavedManualSetup)
                     {
-                        // Calculate the inverse rotation to find the offset *relative* to the aim line
                         Quaternion inverseAimRotation = Quaternion.Inverse(aimRotation);
                         
-                        // Save the manual position and rotation relative to the ball and aim direction
                         _localCameraOffset = inverseAimRotation * (SetupCamera.transform.position - ballPos);
                         _localCameraRotation = inverseAimRotation * SetupCamera.transform.rotation;
                         
                         _hasSavedManualSetup = true;
                     }
                     
-                    // Apply your saved manual setup to the ball's current position and aiming direction
                     SetupCamera.transform.position = ballPos + (aimRotation * _localCameraOffset);
                     SetupCamera.transform.rotation = aimRotation * _localCameraRotation;
 
@@ -146,7 +151,6 @@ namespace GolfGame.Controllers
 
                     if (!isDraggingTarget)
                     {
-                        // Calculate camera-relative directions (flattened so panning doesn't change height)
                         Vector3 camRight = SetupCamera.transform.right;
                         Vector3 camForward = SetupCamera.transform.forward;
                         camRight.y = 0f; 
@@ -156,7 +160,6 @@ namespace GolfGame.Controllers
 
                         if (Input.touchCount > 0)
                         {
-                            // --- Touch Controls (Mobile) ---
                             if (Input.touchCount == 1)
                             {
                                 Touch touch = Input.GetTouch(0);
@@ -169,7 +172,6 @@ namespace GolfGame.Controllers
                             }
                             else if (Input.touchCount == 2)
                             {
-                                // Pinch to Zoom
                                 Touch touchZero = Input.GetTouch(0);
                                 Touch touchOne = Input.GetTouch(1);
 
@@ -180,15 +182,12 @@ namespace GolfGame.Controllers
                                 float currentMag = (touchZero.position - touchOne.position).magnitude;
                                 float deltaMag = prevMag - currentMag;
 
-                                // Zoom along the camera's angled forward vector
                                 SetupCamera.transform.position -= SetupCamera.transform.forward * (deltaMag * TouchZoomSpeed);
                             }
                         }
                         
-                        // --- PC / Editor Fallback Controls ---
                         if (Input.touchCount == 0)
                         {
-                            // Mouse drag to pan
                             if (Input.GetMouseButtonDown(0))
                             {
                                 lastMousePos = Input.mousePosition;
@@ -202,7 +201,6 @@ namespace GolfGame.Controllers
                             }
                         }
 
-                        // WASD / Arrows to pan
                         float h = Input.GetAxis("Horizontal");
                         float v = Input.GetAxis("Vertical");
                         
@@ -212,7 +210,6 @@ namespace GolfGame.Controllers
                             SetupCamera.transform.position += panMove;
                         }
 
-                        // Scroll wheel to zoom
                         float scroll = Input.GetAxis("Mouse ScrollWheel");
                         if (scroll == 0f && Input.mouseScrollDelta.y != 0)
                         {
@@ -221,7 +218,6 @@ namespace GolfGame.Controllers
 
                         if (scroll != 0f)
                         {
-                            // Zoom smoothly along the angled view
                             SetupCamera.transform.position += SetupCamera.transform.forward * (scroll * ZoomSpeed);
                         }
                     }
@@ -243,8 +239,22 @@ namespace GolfGame.Controllers
                 if (AimCamera != null && ballTransform != null && ballInput != null)
                 {
                     Vector3 aimDir = ballInput.FixedAimDirection;
-                    Vector3 camPos = ballTransform.position - aimDir * 5f + Vector3.up * 2f;
+                    
+                    if (ballInput.FlagTransform != null)
+                    {
+                        Vector3 toFlag = ballInput.FlagTransform.position - ballTransform.position;
+                        toFlag.y = 0f; 
+                        
+                        if (toFlag.sqrMagnitude > 0.001f)
+                        {
+                            aimDir = toFlag.normalized;
+                        }
+                    }
+
+                    Vector3 camPos = ballTransform.position - (aimDir * 5f) + (Vector3.up * 2f);
                     AimCamera.transform.position = camPos;
+                    
+                    AimCamera.transform.rotation = Quaternion.LookRotation(aimDir);
                 }
             }
         }

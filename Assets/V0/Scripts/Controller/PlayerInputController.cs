@@ -361,7 +361,7 @@ namespace GolfGame.Controllers
                 dynamicFriction = 0.6f,
                 staticFriction = 0.6f,
                 bounceCombine = PhysicsMaterialCombine.Average,
-                frictionCombine = PhysicsMaterialCombine.Average
+                frictionCombine = PhysicsMaterialCombine.Minimum
             };
             ballCollider.material = bounceMat;
         }
