@@ -15,7 +15,7 @@ MonoBehaviour:
   BallName: StandardBall
   Mass: 0.7
   WindResistance: 0.1
-  Bounciness: 0.6
+  Bounciness: 0.45
   LinearDrag: 0.5
   AngularDrag: 1.5
-  StopThreshold: 0.1
+  StopThreshold: 0.2

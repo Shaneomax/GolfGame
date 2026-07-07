@@ -57,6 +57,14 @@ namespace GolfGame.Controllers
         [Header("Level References")]
         [Tooltip("Drag the hole/flag Transform here in the Inspector.")]
         public Transform FlagTransform;
+        [Header("Arcade Roll Settings (Golf Clash Style)")]
+        [Tooltip("How much horizontal speed is kept per physics frame when rolling. 0.995 = massive roll, 0.98 = short roll.")]
+        [Range(0.90f, 0.999f)]
+        public float RollPreservationFactor = 0.994f;
+
+        [Tooltip("Gives a forward speed boost on the very first bounce to simulate aggressive topspin.")]
+        public float TopspinImpactBoost = 1.15f;
+        private bool wasGroundedLastFrame = false;
 
         #endregion
 
@@ -102,6 +110,7 @@ namespace GolfGame.Controllers
             mainCamera = Camera.main;
             trajectoryPredictor = GetComponent<TrajectoryPredictor>();
             AccuracyController = FindFirstObjectByType<ShotAccuracyController>();
+            //rb.maxAngularVelocity = 150f;
         }
 
         private void Start()
@@ -363,6 +372,32 @@ namespace GolfGame.Controllers
         {
             if (GameStateManager.Instance.CurrentState == GameStateManager.GameState.Flight)
             {
+                bool isPureRolling = isGrounded && Mathf.Abs(rb.linearVelocity.y) < 0.2f;
+
+                if (isPureRolling)
+                {
+                    Vector3 flatVel = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
+                    float currentSpeed = flatVel.magnitude;
+
+                    if (currentSpeed > 0.01f)
+                    {
+                        float targetSpeed = currentSpeed * RollPreservationFactor;
+                        
+                        Vector3 newVelocity = flatVel.normalized * targetSpeed;
+                        newVelocity.y = rb.linearVelocity.y; // Preserve minor physics adjustments on Y
+                        
+                        rb.linearVelocity = newVelocity;
+                    }
+                }
+
+                if (isGrounded && !wasGroundedLastFrame)
+                {
+                    Vector3 flatVel = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
+                    rb.linearVelocity = new Vector3(flatVel.x * TopspinImpactBoost, rb.linearVelocity.y, flatVel.z * TopspinImpactBoost);
+                }
+                
+                wasGroundedLastFrame = isGrounded;
+
                 if (Time.time > flightStartTime + 0.1f && isGrounded)
                 {
                     if (CurrentBall != null && rb.linearVelocity.sqrMagnitude < (CurrentBall.StopThreshold * CurrentBall.StopThreshold))
@@ -378,8 +413,12 @@ namespace GolfGame.Controllers
             if (CurrentBall != null && rb != null)
             {
                 rb.mass = CurrentBall.Mass;
+                
+                // CRITICAL FIX: Since UpdatePhysicsDrag is commented out, we MUST force this to 0 here!
+                rb.linearDamping = 0f; 
+                rb.angularDamping = 0.05f; 
+
                 ApplyBounciness();
-                UpdatePhysicsDrag();
             }
         }
 
@@ -389,48 +428,51 @@ namespace GolfGame.Controllers
 
             PhysicsMaterial bounceMat = new PhysicsMaterial("BallPhysics")
             {
-                bounciness = CurrentBall.Bounciness, // Keeps your perfect bounce
-                dynamicFriction = 0.0f,             // Lowered so the ball doesn't snag on turf
-                staticFriction = 0.0f,               // Lowered so it doesn't get stuck prematurely
-                bounceCombine = PhysicsMaterialCombine.Maximum,
-                frictionCombine = PhysicsMaterialCombine.Minimum // CRITICAL: Forces Unity to use the ball's low friction, not the ground's high friction
+                bounciness = CurrentBall.Bounciness, 
+                dynamicFriction = 0.85f,             
+                staticFriction = 0.85f,               
+                bounceCombine = PhysicsMaterialCombine.Maximum, 
+                frictionCombine = PhysicsMaterialCombine.Maximum
             };
             
             ballCollider.material = bounceMat;
 
-            // --- NEW: CRITICAL FOR ROLLING PHYSICS ---
             if (rb != null)
             {
-                // Unity defaults max spin to 7 rad/s. A fast golf ball needs to spin much faster to roll cleanly without sliding.
+                // Unlocks Unity's default spin limit so the ball can roll fast
                 rb.maxAngularVelocity = 150f; 
             }
         }
 
-        private void UpdatePhysicsDrag()
-        {
-            if (isInMud)
-            {
-                rb.linearDamping = MudLinearDrag;
-                rb.angularDamping = MudAngularDrag;
-            }
-            else if (isGrounded)
-            {
-                rb.linearDamping = CurrentBall != null ? CurrentBall.LinearDrag : GroundLinearDamping;
-                rb.angularDamping = CurrentBall != null ? CurrentBall.AngularDrag : GroundAngularDamping;
-            }
-            else
-            {
-                rb.linearDamping = CurrentBall != null ? (CurrentBall.WindResistance * 0.02f) : 0.02f;
-                rb.angularDamping = 0.01f;
-            }
-        }
+        // private void UpdatePhysicsDrag()
+        // {
+        //     if (isInMud)
+        //     {
+        //         rb.linearDamping = MudLinearDrag;
+        //         rb.angularDamping = MudAngularDrag;
+        //     }
+        //     else if (isGrounded)
+        //     {
+        //         // CRITICAL FIX: Force linear damping to 0 so forward momentum is never drained by the engine.
+        //         rb.linearDamping = 0f; 
+                
+        //         // Lower angular damping so the ball can spin freely for a much longer time.
+        //         rb.angularDamping = 0.05f; 
+        //     }
+        //     else
+        //     {
+        //         // In the air
+        //         rb.linearDamping = CurrentBall != null ? (CurrentBall.WindResistance * 0.02f) : 0.02f;
+        //         rb.angularDamping = 0.01f;
+        //     }
+        // }
 
         private void OnCollisionEnter(Collision collision)
         {
             if (collision.gameObject.CompareTag("Mud")) isInMud = true;
             collisionCount++;
             isGrounded = collisionCount > 0;
-            UpdatePhysicsDrag();
+            //UpdatePhysicsDrag();
         }
 
         private void OnCollisionExit(Collision collision)
@@ -438,7 +480,7 @@ namespace GolfGame.Controllers
             if (collision.gameObject.CompareTag("Mud")) isInMud = false;
             collisionCount = Mathf.Max(0, collisionCount - 1);
             isGrounded = collisionCount > 0;
-            UpdatePhysicsDrag();
+            //UpdatePhysicsDrag();
         }
 
         private void StopBall()
@@ -447,8 +489,10 @@ namespace GolfGame.Controllers
             rb.angularVelocity = Vector3.zero;
             rb.Sleep(); 
             
-            // Stop emitting the trail as soon as the ball stops
             if (BallTrail != null) BallTrail.emitting = false;
+            
+            // NEW: Reset tracking states
+            wasGroundedLastFrame = false;
             
             GameStateManager.Instance.ChangeState(GameStateManager.GameState.Setup);
         }

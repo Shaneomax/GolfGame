@@ -26,7 +26,7 @@ Transform:
   m_GameObject: {fileID: 834989284113751299}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.00005, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0.000381}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -264,7 +264,7 @@ SphereCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1497659883974459721}
-  m_Material: {fileID: 13400000, guid: 8213f3408ab86af448a5326fe7fdfc79, type: 2}
+  m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -337,6 +337,8 @@ MonoBehaviour:
   MaxAimAngle: 45
   MinTargetDistance: 80
   FlagTransform: {fileID: 2418715018993201027, guid: bd4e6f0bc98914d439e9d9c1deae8654, type: 3}
+  RollPreservationFactor: 0.999
+  TopspinImpactBoost: 1.15
   LowForceColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   NormalForceColor: {r: 0, g: 1, b: 0, a: 1}
   ExtremeForceColor: {r: 1, g: 0, b: 0, a: 1}

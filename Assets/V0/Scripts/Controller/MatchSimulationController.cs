@@ -88,13 +88,11 @@ namespace GolfGame.Controllers
 
             if (activeBall == null)
             {
-                // First shot: Spawn the ball at the tee
                 activeBall = Instantiate(BallPrefab, TeeTransform.position, Quaternion.identity);
                 activeBallRb = activeBall.GetComponent<Rigidbody>();
             }
             else
             {
-                // Subsequent shots: Just ensure the ball is completely stopped
                 activeBallRb.linearVelocity = Vector3.zero; 
                 activeBallRb.angularVelocity = Vector3.zero; 
                 
@@ -112,11 +110,6 @@ namespace GolfGame.Controllers
                 }
             }
         }
-
-        /// <summary>
-        /// Transitions the game state from Setup to Aiming.
-        /// Can be called from a UI Button click event in the inspector.
-        /// </summary>
         public void TransitionSetupToAiming()
         {
             if (GameStateManager.Instance != null && GameStateManager.Instance.CurrentState == GameStateManager.GameState.Setup)
