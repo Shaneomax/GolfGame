@@ -29,6 +29,7 @@ namespace GolfGame.Controllers
         [Header("Visuals")]
         [Tooltip("Line Renderer used to show the elastic pull-back connection.")]
         public LineRenderer DragLineRenderer;
+        public TrailRenderer BallTrail;
 
         [Tooltip("Multiplier for how far the visual line stretches in world space per drag unit.")]
         public float DragVisualMultiplier = 0.5f;
@@ -132,6 +133,13 @@ namespace GolfGame.Controllers
         {
             if (newState == GameStateManager.GameState.Setup)
             {
+                // Turn off and clear the trail when setting up
+                if (BallTrail != null) 
+                {
+                    BallTrail.emitting = false;
+                    BallTrail.Clear(); 
+                }
+                
                 SpawnTargetMarker();
                 RepositionTargetMarker();
             }
@@ -140,11 +148,20 @@ namespace GolfGame.Controllers
                 if (trajectoryPredictor != null) trajectoryPredictor.HideTrajectory();
                 if (activeTargetMarker != null) activeTargetMarker.SetActive(false);
                 if (AccuracyController != null) AccuracyController.SetClub(CurrentClub);
+                
+                // Ensure trail is off during aiming
+                if (BallTrail != null) BallTrail.emitting = false;
             }
             else if (newState == GameStateManager.GameState.Flight)
             {
                 flightStartTime = Time.time;
                 if (activeTargetMarker != null) activeTargetMarker.SetActive(false);
+                
+                // Turn the trail on when the ball takes off
+                if (BallTrail != null) 
+                {
+                    BallTrail.emitting = true;
+                }
             }
         }
 
@@ -372,13 +389,21 @@ namespace GolfGame.Controllers
 
             PhysicsMaterial bounceMat = new PhysicsMaterial("BallPhysics")
             {
-                bounciness = CurrentBall.Bounciness,
-                dynamicFriction = 0.6f,
-                staticFriction = 0.6f,
-                bounceCombine = PhysicsMaterialCombine.Average,
-                frictionCombine = PhysicsMaterialCombine.Minimum
+                bounciness = CurrentBall.Bounciness, // Keeps your perfect bounce
+                dynamicFriction = 0.0f,             // Lowered so the ball doesn't snag on turf
+                staticFriction = 0.0f,               // Lowered so it doesn't get stuck prematurely
+                bounceCombine = PhysicsMaterialCombine.Maximum,
+                frictionCombine = PhysicsMaterialCombine.Minimum // CRITICAL: Forces Unity to use the ball's low friction, not the ground's high friction
             };
+            
             ballCollider.material = bounceMat;
+
+            // --- NEW: CRITICAL FOR ROLLING PHYSICS ---
+            if (rb != null)
+            {
+                // Unity defaults max spin to 7 rad/s. A fast golf ball needs to spin much faster to roll cleanly without sliding.
+                rb.maxAngularVelocity = 150f; 
+            }
         }
 
         private void UpdatePhysicsDrag()
@@ -421,6 +446,9 @@ namespace GolfGame.Controllers
             rb.linearVelocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
             rb.Sleep(); 
+            
+            // Stop emitting the trail as soon as the ball stops
+            if (BallTrail != null) BallTrail.emitting = false;
             
             GameStateManager.Instance.ChangeState(GameStateManager.GameState.Setup);
         }
