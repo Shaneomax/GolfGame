@@ -6,38 +6,42 @@ namespace GolfGame.Controllers
     public class CinemachineAimController : MonoBehaviour
     {
         [Header("Cinemachine References")]
-        [Tooltip("The camera used for the top-down Setup phase.")]
         public CinemachineCamera SetupCamera;
-
-        [Tooltip("The camera used for the behind-the-ball Aiming phase.")]
         public CinemachineCamera AimCamera;
-
-        // NEW: Added the Flight Camera reference
-        [Tooltip("The camera used to follow the ball during the Flight phase.")]
+        
+        [Tooltip("Positioned low behind the tee, looks up at the rising ball.")]
         public CinemachineCamera FlightCamera;
+        
+        [Tooltip("Positioned to the side of the fairway, tracks the ball mid-flight.")]
+        public CinemachineCamera ApexCamera;
+        
+        [Tooltip("Positioned near the target marker, looks back at the incoming ball.")]
+        public CinemachineCamera LandingCamera;
 
-        private Transform ballTransform;
-        private Transform arrowTransform;
-        private PlayerInputController ballInput;
-        private PlayerInputController arrowInput;
+        [Tooltip("Tightly follows behind the ball after it hits the ground and rolls.")]
+        public CinemachineCamera RollCamera;
+
+        [Tooltip("Anchor used to orient the camera's alignment behind the ball.")]
         public Transform AimTargetAnchor;
 
-        [Header("Setup Camera Controls")]
-        public float PanSpeed = 20f;
-        public float ZoomSpeed = 50f;
-        public float MinZoom = 10f;
-        public float MaxZoom = 60f;
-        [Tooltip("Speed of touch and mouse drag panning.")]
+        [Header("Setup Camera Controls (Mobile Touch Only)")]
         public float TouchPanSpeed = 0.05f;
-        [Tooltip("Speed of touch pinch zooming.")]
         public float TouchZoomSpeed = 0.05f;
 
-        private Vector3 lastMousePos;
-        private bool _setupCameraPositioned = false;
+        private Transform ballTransform;
+        private Rigidbody ballRigidbody;
+        private PlayerInputController ballInput;
 
+        private bool _setupCameraPositioned = false;
         private Vector3 _localCameraOffset;
         private Quaternion _localCameraRotation;
         private bool _hasSavedManualSetup = false;
+
+        // Flight phase tracking states
+        private Vector3 _shotStartPosition;
+        private Vector3 _shotTargetPosition;
+        private float _totalShotDistance;
+        private int _flightSubState = 0; // 0=Launch, 1=Apex, 2=Landing, 3=Rolling
 
         private void Start()
         {
@@ -61,14 +65,8 @@ namespace GolfGame.Controllers
             if (ball != null)
             {
                 ballTransform = ball.transform;
+                ballRigidbody = ball.GetComponent<Rigidbody>();
                 ballInput = ball.GetComponent<PlayerInputController>();
-            }
-
-            GameObject arrow = GameObject.FindWithTag("Arrow");
-            if (arrow != null)
-            {
-                arrowTransform = arrow.transform;
-                arrowInput = arrow.GetComponent<PlayerInputController>();
             }
         }
 
@@ -76,10 +74,13 @@ namespace GolfGame.Controllers
         {
             FindBall();
 
-            // NEW: Reset all camera priorities to 0 first to prevent conflicts
+            // Reset all camera priorities
             if (SetupCamera != null) SetupCamera.Priority = 0;
             if (AimCamera != null) AimCamera.Priority = 0;
             if (FlightCamera != null) FlightCamera.Priority = 0;
+            if (ApexCamera != null) ApexCamera.Priority = 0;
+            if (LandingCamera != null) LandingCamera.Priority = 0;
+            if (RollCamera != null) RollCamera.Priority = 0;
 
             if (newState == GameStateManager.GameState.Setup)
             {
@@ -91,21 +92,79 @@ namespace GolfGame.Controllers
                 if (AimCamera != null && ballTransform != null)
                 {
                     AimCamera.Priority = 10;
-                    
-                    AimCamera.Follow = null;
-                    AimCamera.LookAt = null;
+                    AimCamera.Follow = ballTransform;
+                    AimCamera.LookAt = AimTargetAnchor != null ? AimTargetAnchor : ballTransform;
                 }
             }
-            // NEW: Added logic for the Flight state
             else if (newState == GameStateManager.GameState.Flight)
             {
-                if (FlightCamera != null && ballTransform != null)
+                _flightSubState = 0; 
+                
+                if (ballTransform != null && ballInput != null && ballInput.ActiveTargetMarker != null)
                 {
-                    FlightCamera.Priority = 10;
-                    
-                    // Assign the ball to the Flight Camera so Cinemachine automatically handles tracking
-                    FlightCamera.Follow = ballTransform;
-                    FlightCamera.LookAt = ballTransform;
+                    _shotStartPosition = ballTransform.position;
+                    _shotTargetPosition = ballInput.ActiveTargetMarker.transform.position;
+                    _totalShotDistance = Vector3.Distance(new Vector3(_shotStartPosition.x, 0, _shotStartPosition.z), new Vector3(_shotTargetPosition.x, 0, _shotTargetPosition.z));
+
+                    ConfigureFlightCameras();
+                }
+            }
+        }
+
+        private void ConfigureFlightCameras()
+        {
+            Vector3 shotDirection = (_shotTargetPosition - _shotStartPosition).normalized;
+            shotDirection.y = 0;
+            Vector3 shotRight = Vector3.Cross(Vector3.up, shotDirection).normalized;
+
+            // 1. Flight Camera
+            if (FlightCamera != null)
+            {
+                FlightCamera.Priority = 10;
+                FlightCamera.LookAt = ballTransform;
+                FlightCamera.Follow = null; 
+                FlightCamera.transform.position = _shotStartPosition - (shotDirection * 4f) + (Vector3.up * 1.5f);
+            }
+
+            // 2. Apex Camera
+            if (ApexCamera != null)
+            {
+                ApexCamera.LookAt = ballTransform;
+                ApexCamera.Follow = null;
+                Vector3 midPoint = _shotStartPosition + (shotDirection * (_totalShotDistance * 0.4f));
+                ApexCamera.transform.position = midPoint + (shotRight * (_totalShotDistance * 0.3f)) + (Vector3.up * 12f);
+            }
+
+            // 3. Landing Camera (Positioned AHEAD and to the left of the target, looking back)
+            if (LandingCamera != null)
+            {
+                LandingCamera.LookAt = ballTransform;
+                LandingCamera.Follow = null;
+                // Places the camera 12 units past the hole, and 4 units left of the fairway
+                LandingCamera.transform.position = _shotTargetPosition + (shotDirection * 12f) - (shotRight * 4f) + (Vector3.up * 3f);
+            }
+
+            // 4. Roll Camera (Follows the stable Anchor)
+            if (RollCamera != null)
+            {
+                RollCamera.Follow = AimTargetAnchor != null ? AimTargetAnchor : ballTransform;
+                RollCamera.LookAt = ballTransform;
+            }
+        }
+
+        private void HandleRollAnchorTracking()
+        {
+            if (ballTransform != null && AimTargetAnchor != null)
+            {
+                // 1. Anchor moves with the ball
+                AimTargetAnchor.position = ballTransform.position;
+
+                // 2. Anchor rotation stays locked strictly to the original shot direction
+                Vector3 shotDir = (_shotTargetPosition - _shotStartPosition).normalized;
+                shotDir.y = 0;
+                if (shotDir.sqrMagnitude > 0.001f)
+                {
+                    AimTargetAnchor.rotation = Quaternion.LookRotation(shotDir);
                 }
             }
         }
@@ -114,152 +173,139 @@ namespace GolfGame.Controllers
         {
             if (GameStateManager.Instance == null) return;
 
-            // --- SETUP CAMERA LOGIC ---
             if (GameStateManager.Instance.CurrentState == GameStateManager.GameState.Setup)
             {
-                if (ballTransform == null) FindBall();
+                HandleSetupTouchInput();
+            }
+            else if (GameStateManager.Instance.CurrentState == GameStateManager.GameState.Aiming)
+            {
+                HandleAimAnchorTracking();
+            }
+            else if (GameStateManager.Instance.CurrentState == GameStateManager.GameState.Flight)
+            {
+                HandleFlightSubStateTransitions();
 
-                if (!_setupCameraPositioned && SetupCamera != null && ballInput != null && ballInput.ActiveTargetMarker != null)
+                // NEW: If we are in the Roll phase, update the side-tracking anchor
+                if (_flightSubState == 3)
                 {
-                    Vector3 markerPos = ballInput.ActiveTargetMarker.transform.position;
-                    Vector3 ballPos = ballTransform.position;
-                    
-                    Vector3 aimDir = (markerPos - ballPos).normalized;
-                    aimDir.y = 0f; 
-                    if (aimDir.sqrMagnitude < 0.001f) aimDir = Vector3.forward;
-
-                    Quaternion aimRotation = Quaternion.LookRotation(aimDir);
-
-                    if (!_hasSavedManualSetup)
-                    {
-                        Quaternion inverseAimRotation = Quaternion.Inverse(aimRotation);
-                        
-                        _localCameraOffset = inverseAimRotation * (SetupCamera.transform.position - ballPos);
-                        _localCameraRotation = inverseAimRotation * SetupCamera.transform.rotation;
-                        
-                        _hasSavedManualSetup = true;
-                    }
-                    
-                    SetupCamera.transform.position = ballPos + (aimRotation * _localCameraOffset);
-                    SetupCamera.transform.rotation = aimRotation * _localCameraRotation;
-
-                    _setupCameraPositioned = true;
+                    HandleRollAnchorTracking();
                 }
-                else if (_setupCameraPositioned && SetupCamera != null)
+            }
+        }
+
+        private void HandleSetupTouchInput()
+        {
+            if (ballTransform == null) FindBall();
+
+            if (!_setupCameraPositioned && SetupCamera != null && ballInput != null && ballInput.ActiveTargetMarker != null)
+            {
+                Vector3 markerPos = ballInput.ActiveTargetMarker.transform.position;
+                Vector3 ballPos = ballTransform.position;
+                
+                Vector3 aimDir = (markerPos - ballPos).normalized;
+                aimDir.y = 0f; 
+                if (aimDir.sqrMagnitude < 0.001f) aimDir = Vector3.forward;
+
+                Quaternion aimRotation = Quaternion.LookRotation(aimDir);
+
+                if (!_hasSavedManualSetup)
                 {
-                    bool isDraggingTarget = (ballInput != null && ballInput.IsDraggingTarget);
-
-                    if (!isDraggingTarget)
-                    {
-                        Vector3 camRight = SetupCamera.transform.right;
-                        Vector3 camForward = SetupCamera.transform.forward;
-                        camRight.y = 0f; 
-                        camForward.y = 0f;
-                        camRight.Normalize();
-                        camForward.Normalize();
-
-                        if (Input.touchCount > 0)
-                        {
-                            if (Input.touchCount == 1)
-                            {
-                                Touch touch = Input.GetTouch(0);
-                                if (touch.phase == TouchPhase.Moved)
-                                {
-                                    Vector2 delta = touch.deltaPosition;
-                                    Vector3 panMove = (camRight * -delta.x + camForward * -delta.y) * TouchPanSpeed;
-                                    SetupCamera.transform.position += panMove;
-                                }
-                            }
-                            else if (Input.touchCount == 2)
-                            {
-                                Touch touchZero = Input.GetTouch(0);
-                                Touch touchOne = Input.GetTouch(1);
-
-                                Vector2 touchZeroPrev = touchZero.position - touchZero.deltaPosition;
-                                Vector2 touchOnePrev = touchOne.position - touchOne.deltaPosition;
-
-                                float prevMag = (touchZeroPrev - touchOnePrev).magnitude;
-                                float currentMag = (touchZero.position - touchOne.position).magnitude;
-                                float deltaMag = prevMag - currentMag;
-
-                                SetupCamera.transform.position -= SetupCamera.transform.forward * (deltaMag * TouchZoomSpeed);
-                            }
-                        }
-                        
-                        if (Input.touchCount == 0)
-                        {
-                            if (Input.GetMouseButtonDown(0))
-                            {
-                                lastMousePos = Input.mousePosition;
-                            }
-                            else if (Input.GetMouseButton(0))
-                            {
-                                Vector3 delta = Input.mousePosition - lastMousePos;
-                                Vector3 panMove = (camRight * -delta.x + camForward * -delta.y) * TouchPanSpeed;
-                                SetupCamera.transform.position += panMove;
-                                lastMousePos = Input.mousePosition;
-                            }
-                        }
-
-                        float h = Input.GetAxis("Horizontal");
-                        float v = Input.GetAxis("Vertical");
-                        
-                        if (h != 0 || v != 0)
-                        {
-                            Vector3 panMove = (camRight * h + camForward * v) * PanSpeed * Time.deltaTime;
-                            SetupCamera.transform.position += panMove;
-                        }
-
-                        float scroll = Input.GetAxis("Mouse ScrollWheel");
-                        if (scroll == 0f && Input.mouseScrollDelta.y != 0)
-                        {
-                            scroll = Input.mouseScrollDelta.y * 0.1f;
-                        }
-
-                        if (scroll != 0f)
-                        {
-                            SetupCamera.transform.position += SetupCamera.transform.forward * (scroll * ZoomSpeed);
-                        }
-                    }
+                    Quaternion inverseAimRotation = Quaternion.Inverse(aimRotation);
+                    _localCameraOffset = inverseAimRotation * (SetupCamera.transform.position - ballPos);
+                    _localCameraRotation = inverseAimRotation * SetupCamera.transform.rotation;
+                    _hasSavedManualSetup = true;
                 }
                 
-                if (GameStateManager.Instance.CurrentState == GameStateManager.GameState.Aiming)
+                SetupCamera.transform.position = ballPos + (aimRotation * _localCameraOffset);
+                SetupCamera.transform.rotation = aimRotation * _localCameraRotation;
+                _setupCameraPositioned = true;
+            }
+            else if (_setupCameraPositioned && SetupCamera != null)
+            {
+                bool isDraggingTarget = (ballInput != null && ballInput.IsDraggingTarget);
+
+                if (!isDraggingTarget && Input.touchCount > 0)
                 {
-                    if (AimTargetAnchor != null && ballTransform != null && ballInput != null)
+                    Vector3 camRight = SetupCamera.transform.right;
+                    Vector3 camForward = SetupCamera.transform.forward;
+                    camRight.y = 0f; camForward.y = 0f;
+                    camRight.Normalize(); camForward.Normalize();
+
+                    if (Input.touchCount == 1)
                     {
-                        AimTargetAnchor.position = ballTransform.position;
-                        AimTargetAnchor.rotation = Quaternion.LookRotation(ballInput.FixedAimDirection);
+                        Touch touch = Input.GetTouch(0);
+                        if (touch.phase == TouchPhase.Moved)
+                        {
+                            Vector3 panMove = (camRight * -touch.deltaPosition.x + camForward * -touch.deltaPosition.y) * TouchPanSpeed;
+                            SetupCamera.transform.position += panMove;
+                        }
+                    }
+                    else if (Input.touchCount == 2)
+                    {
+                        Touch touchZero = Input.GetTouch(0);
+                        Touch touchOne = Input.GetTouch(1);
+
+                        Vector2 touchZeroPrev = touchZero.position - touchZero.deltaPosition;
+                        Vector2 touchOnePrev = touchOne.position - touchOne.deltaPosition;
+
+                        float prevMag = (touchZeroPrev - touchOnePrev).magnitude;
+                        float currentMag = (touchZero.position - touchOne.position).magnitude;
+                        
+                        SetupCamera.transform.position -= SetupCamera.transform.forward * ((prevMag - currentMag) * TouchZoomSpeed);
                     }
                 }
             }
-            
-            // --- AIM CAMERA LOGIC ---
-            if (GameStateManager.Instance.CurrentState == GameStateManager.GameState.Aiming)
-            {
-                if (AimCamera != null && ballTransform != null && ballInput != null)
-                {
-                    // 1. Start with the input direction from your player controller
-                    Vector3 aimDir = ballInput.FixedAimDirection;
-                    
-                    // 2. UPDATED: Track the ActiveTargetMarker instead of the FlagTransform
-                    if (ballInput.ActiveTargetMarker != null)
-                    {
-                        Vector3 toMarker = ballInput.ActiveTargetMarker.transform.position - ballTransform.position;
-                        toMarker.y = 0f; // Keep the look-at horizontal so the camera doesn't tilt up/down
-                        
-                        if (toMarker.sqrMagnitude > 0.001f)
-                        {
-                            aimDir = toMarker.normalized;
-                        }
-                    }
+        }
 
-                    // 3. Position the camera 5 units behind the ball and 2 units up
-                    Vector3 camPos = ballTransform.position - (aimDir * 5f) + (Vector3.up * 2f);
-                    
-                    // 4. Update the camera transform
-                    AimCamera.transform.position = camPos;
-                    AimCamera.transform.rotation = Quaternion.LookRotation(aimDir);
+        private void HandleAimAnchorTracking()
+        {
+            if (ballTransform != null && ballInput != null && AimTargetAnchor != null)
+            {
+                AimTargetAnchor.position = ballTransform.position;
+
+                Vector3 aimDir = ballInput.FixedAimDirection;
+                if (ballInput.ActiveTargetMarker != null)
+                {
+                    Vector3 toMarker = ballInput.ActiveTargetMarker.transform.position - ballTransform.position;
+                    toMarker.y = 0f;
+                    if (toMarker.sqrMagnitude > 0.001f) aimDir = toMarker.normalized;
                 }
+                
+                AimTargetAnchor.rotation = Quaternion.LookRotation(aimDir);
+            }
+        }
+
+        private void HandleFlightSubStateTransitions()
+        {
+            if (ballTransform == null || ballRigidbody == null) return;
+
+            float currentProgress = Vector3.Distance(
+                new Vector3(_shotStartPosition.x, 0, _shotStartPosition.z), 
+                new Vector3(ballTransform.position.x, 0, ballTransform.position.z)
+            ) / _totalShotDistance;
+
+            // 1. Launch -> Apex
+            if (_flightSubState == 0 && currentProgress > 0.25f && ballRigidbody.linearVelocity.y > 0)
+            {
+                _flightSubState = 1;
+                if (FlightCamera != null) FlightCamera.Priority = 0;
+                if (ApexCamera != null) ApexCamera.Priority = 10;
+            }
+
+            // 2. Apex -> Landing View (Trigger as ball falls towards the green)
+            if (_flightSubState == 1 && (ballRigidbody.linearVelocity.y < -0.5f || currentProgress > 0.70f))
+            {
+                _flightSubState = 2;
+                if (ApexCamera != null) ApexCamera.Priority = 0;
+                if (LandingCamera != null) LandingCamera.Priority = 10;
+            }
+
+            // 3. Landing View -> Roll Camera (Trigger when ball hits the ground)
+            if (_flightSubState == 2 && ballRigidbody.linearVelocity.y > -0.1f)
+            {
+                _flightSubState = 3;
+                if (LandingCamera != null) LandingCamera.Priority = 0;
+                if (RollCamera != null) RollCamera.Priority = 10;
             }
         }
     }
