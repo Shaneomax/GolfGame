@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BallData
   BallName: StandardBall
   Mass: 0.7
-  WindResistance: 0.1
-  Bounciness: 0.45
+  WindResistance: 0.5
+  Bounciness: 0.4
   LinearDrag: 0.5
   AngularDrag: 1.5
-  StopThreshold: 0.2
+  StopThreshold: 0.0008

@@ -135,13 +135,13 @@ namespace GolfGame.Controllers
                 ApexCamera.transform.position = midPoint + (shotRight * (_totalShotDistance * 0.3f)) + (Vector3.up * 12f);
             }
 
-            // 3. Landing Camera (Positioned AHEAD and to the left of the target, looking back)
+            // 3. Landing Camera (Positioned AHEAD and to the RIGHT of the target, looking back)
             if (LandingCamera != null)
             {
                 LandingCamera.LookAt = ballTransform;
                 LandingCamera.Follow = null;
-                // Places the camera 12 units past the hole, and 4 units left of the fairway
-                LandingCamera.transform.position = _shotTargetPosition + (shotDirection * 12f) - (shotRight * 4f) + (Vector3.up * 3f);
+                // Changed to + shotRight to place it on the opposite side (-x visually)
+                LandingCamera.transform.position = _shotTargetPosition + (shotDirection * 12f) + (shotRight * 4f) + (Vector3.up * 3f);
             }
 
             // 4. Roll Camera (Follows the stable Anchor)
