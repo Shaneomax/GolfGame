@@ -177,6 +177,8 @@ GameObject:
   - component: {fileID: 284888292915245395}
   - component: {fileID: 1830173559839787046}
   - component: {fileID: 3428993087366212951}
+  - component: {fileID: 8082322351056538373}
+  - component: {fileID: -2827105273082855494}
   m_Layer: 0
   m_Name: GolfBall
   m_TagString: Player
@@ -323,29 +325,11 @@ MonoBehaviour:
   DefaultLoftAngle: 30
   PowerScale: 0.3
   MaxDeviationAngle: 22
-  DragLineRenderer: {fileID: 3116186802648991874}
-  BallTrail: {fileID: 3428993087366212951}
-  DragVisualMultiplier: 1.3
-  GroundLinearDamping: 0.15
-  GroundAngularDamping: 0.1
-  MudAngularDrag: 8
-  MudLinearDrag: 2
-  FairwayForwardDamping: 0.9
-  FirstBounceBoost: 1
-  ForwardToBounceConversion: 0.2
-  FairwayBounceDamping: 0.25
   CurrentBall: {fileID: 11400000, guid: b284ba16acee41146b521dd9163c16de, type: 2}
   CurrentClub: {fileID: 11400000, guid: 15cf0951eff3747428b474464fb224ac, type: 2}
   AccuracyController: {fileID: 1638904212754295665, guid: ae8846828b186f345931718cb721baf7, type: 3}
-  TargetMarkerPrefab: {fileID: 4578203350107692312, guid: 65e18981ed05e594b838df9c564cd78a, type: 3}
-  MaxAimAngle: 45
-  MinTargetDistance: 80
-  FlagTransform: {fileID: 2418715018993201027, guid: bd4e6f0bc98914d439e9d9c1deae8654, type: 3}
-  RollPreservationFactor: 0.999
-  LowForceColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
-  NormalForceColor: {r: 0, g: 1, b: 0, a: 1}
-  ExtremeForceColor: {r: 1, g: 0, b: 0, a: 1}
-  ExtremeForceThreshold: 0.5
+  AimVisuals: {fileID: 8082322351056538373}
+  PhysicsController: {fileID: -2827105273082855494}
 --- !u!120 &284888292915245395
 LineRenderer:
   serializedVersion: 3
@@ -590,3 +574,47 @@ TrailRenderer:
   m_Autodestruct: 0
   m_Emitting: 1
   m_ApplyActiveColorSpace: 1
+--- !u!114 &8082322351056538373
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1497659883974459721}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ff20d65da7bcc4749998bb0c29ef708c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GolfGame.Controllers.AimVisualsController
+  TargetMarkerPrefab: {fileID: 4578203350107692312, guid: 65e18981ed05e594b838df9c564cd78a, type: 3}
+  MinTargetDistance: 3
+  MaxAimAngle: 45
+  FlagTransform: {fileID: 2418715018993201027, guid: bd4e6f0bc98914d439e9d9c1deae8654, type: 3}
+  DragLineRenderer: {fileID: 3116186802648991874}
+  BallTrail: {fileID: 3428993087366212951}
+  DragVisualMultiplier: 0.5
+  LowForceColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+  NormalForceColor: {r: 0, g: 1, b: 0, a: 1}
+  ExtremeForceColor: {r: 1, g: 0, b: 0, a: 1}
+  ExtremeForceThreshold: 0.5
+--- !u!114 &-2827105273082855494
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1497659883974459721}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4bc70973db639a3418f16448c192f1b1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GolfGame.Controllers.BallPhysicsController
+  GroundLinearDamping: 0.15
+  GroundAngularDamping: 0.1
+  MudAngularDrag: 8
+  MudLinearDrag: 4
+  FairwayForwardDamping: 0.9
+  FirstBounceBoost: 1.2
+  ForwardToBounceConversion: 0.35
+  FairwayBounceDamping: 0.5
+  RollPreservationFactor: 0.994
