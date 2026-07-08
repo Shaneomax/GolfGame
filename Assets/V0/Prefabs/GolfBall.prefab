@@ -331,9 +331,9 @@ MonoBehaviour:
   MudAngularDrag: 8
   MudLinearDrag: 2
   FairwayForwardDamping: 0.9
-  FirstBounceBoost: 1.2
-  ForwardToBounceConversion: 0.4
-  FairwayBounceDamping: 0.5
+  FirstBounceBoost: 1
+  ForwardToBounceConversion: 0.2
+  FairwayBounceDamping: 0.25
   CurrentBall: {fileID: 11400000, guid: b284ba16acee41146b521dd9163c16de, type: 2}
   CurrentClub: {fileID: 11400000, guid: 15cf0951eff3747428b474464fb224ac, type: 2}
   AccuracyController: {fileID: 1638904212754295665, guid: ae8846828b186f345931718cb721baf7, type: 3}
