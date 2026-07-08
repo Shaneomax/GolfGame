@@ -40,6 +40,22 @@ namespace GolfGame.Controllers
         public float MudAngularDrag = 8.0f;
         public float MudLinearDrag = 4.0f;
 
+        [Tooltip("How much forward momentum is kept on subsequent Fairway bounces (0 = none, 1 = all). Adjust to get the right roll distance.")]
+        [Range(0f, 1f)]
+        public float FairwayForwardDamping = 0.9f;
+
+        [Tooltip("Boost multiplier for the VERY FIRST bounce. Increase this if the first bounce isn't high enough.")]
+        [Range(1f, 3f)]
+        public float FirstBounceBoost = 1.2f;
+
+        [Tooltip("How much forward speed is converted into upward bounce on the first hit (0 to 1). Kills forward momentum to make the bounce 'pop'.")]
+        [Range(0f, 1f)]
+        public float ForwardToBounceConversion = 0.35f;
+
+        [Tooltip("How much bounce height is kept on subsequent Fairway bounces (0.5 = half of the previous bounce).")]
+        [Range(0f, 1.5f)]
+        public float FairwayBounceDamping = 0.5f;
+
         #endregion
 
         #region Data References
@@ -52,19 +68,17 @@ namespace GolfGame.Controllers
         public float MaxAimAngle = 45f;
         
         [Tooltip("The minimum allowed distance from the ball to the target marker.")]
-        public float MinTargetDistance = 3f; // <-- NEW MIN DISTANCE VARIABLE
+        public float MinTargetDistance = 3f;
 
         [Header("Level References")]
         [Tooltip("Drag the hole/flag Transform here in the Inspector.")]
         public Transform FlagTransform;
+        
         [Header("Arcade Roll Settings (Golf Clash Style)")]
         [Tooltip("How much horizontal speed is kept per physics frame when rolling. 0.995 = massive roll, 0.98 = short roll.")]
         [Range(0.90f, 0.999f)]
         public float RollPreservationFactor = 0.994f;
-
-        [Tooltip("Gives a forward speed boost on the very first bounce to simulate aggressive topspin.")]
-        public float TopspinImpactBoost = 1.15f;
-        private bool wasGroundedLastFrame = false;
+        // REMOVED: TopspinImpactBoost and wasGroundedLastFrame[cite: 4]
 
         #endregion
 
@@ -82,6 +96,9 @@ namespace GolfGame.Controllers
         private int collisionCount = 0;
         private bool isGrounded = false;
         private bool isInMud = false;
+        private string currentGroundTag = "Untagged";
+        private int bounceCount = 0;
+        private float lastBounceVelocityY = 0f;
 
         private Vector3 fixedAimDirection = Vector3.forward;
         public Vector3 FixedAimDirection => fixedAimDirection;
@@ -89,6 +106,7 @@ namespace GolfGame.Controllers
         private Vector3 initialAimDirection = Vector3.forward;
         private GameObject activeTargetMarker;
         private bool isDraggingTarget = false;
+        
         [Header("Line Dynamic Colors")]
         public Color LowForceColor = Color.yellow;
         public Color NormalForceColor = Color.green;
@@ -110,7 +128,6 @@ namespace GolfGame.Controllers
             mainCamera = Camera.main;
             trajectoryPredictor = GetComponent<TrajectoryPredictor>();
             AccuracyController = FindFirstObjectByType<ShotAccuracyController>();
-            //rb.maxAngularVelocity = 150f;
         }
 
         private void Start()
@@ -142,7 +159,6 @@ namespace GolfGame.Controllers
         {
             if (newState == GameStateManager.GameState.Setup)
             {
-                // Turn off and clear the trail when setting up
                 if (BallTrail != null) 
                 {
                     BallTrail.emitting = false;
@@ -158,15 +174,14 @@ namespace GolfGame.Controllers
                 if (activeTargetMarker != null) activeTargetMarker.SetActive(false);
                 if (AccuracyController != null) AccuracyController.SetClub(CurrentClub);
                 
-                // Ensure trail is off during aiming
                 if (BallTrail != null) BallTrail.emitting = false;
             }
             else if (newState == GameStateManager.GameState.Flight)
             {
                 flightStartTime = Time.time;
+                bounceCount = 0; // Reset bounce count on new shot
                 if (activeTargetMarker != null) activeTargetMarker.SetActive(false);
                 
-                // Turn the trail on when the ball takes off
                 if (BallTrail != null) 
                 {
                     BallTrail.emitting = true;
@@ -180,7 +195,6 @@ namespace GolfGame.Controllers
                 isDraggingTarget = false;
         }
 
-        // Helper method to convert pixel drag into our 0-10 scale based on screen height
         private float GetScaledDragMagnitude(Vector3 dragVector)
         {
             return (dragVector.magnitude / Screen.height) * 10f;
@@ -201,25 +215,21 @@ namespace GolfGame.Controllers
             if (TargetMarkerPrefab != null && activeTargetMarker == null)
             {
                 float maxRange = CalculateMaxRange();
-                float targetDistance = maxRange * 0.7f; // Default to 70% of max range
+                float targetDistance = maxRange * 0.7f; 
                 
-                // Safely use the Inspector-assigned Flag
                 if (FlagTransform != null)
                 {
                     Vector3 toFlag = FlagTransform.position - transform.position;
-                    toFlag.y = 0f; // Keep it on a flat plane
+                    toFlag.y = 0f; 
                     
-                    // Aim directly at the flag
                     fixedAimDirection = toFlag.normalized;
                     
-                    // If the flag is closer than our 70% distance, snap the marker to the flag!
                     if (toFlag.magnitude < targetDistance)
                     {
                         targetDistance = toFlag.magnitude;
                     }
                 }
 
-                // Clamp the spawn distance between min and max
                 targetDistance = Mathf.Clamp(targetDistance, MinTargetDistance, maxRange);
 
                 Vector3 spawnPos = transform.position + fixedAimDirection * targetDistance;
@@ -241,9 +251,8 @@ namespace GolfGame.Controllers
             if (activeTargetMarker != null)
             {
                 float maxRange = CalculateMaxRange();
-                float targetDistance = maxRange * 0.7f; // Default to 70% of max range
+                float targetDistance = maxRange * 0.7f; 
                 
-                // Safely use the Inspector-assigned Flag
                 if (FlagTransform != null)
                 {
                     Vector3 toFlag = FlagTransform.position - transform.position;
@@ -257,7 +266,6 @@ namespace GolfGame.Controllers
                     }
                 }
 
-                // Clamp the reposition distance between min and max
                 targetDistance = Mathf.Clamp(targetDistance, MinTargetDistance, maxRange);
 
                 Vector3 newPos = transform.position + fixedAimDirection * targetDistance;
@@ -265,7 +273,6 @@ namespace GolfGame.Controllers
                 activeTargetMarker.transform.position = newPos;
                 activeTargetMarker.SetActive(true);
                 
-                // Update the initial aim so dragging limits still work correctly
                 initialAimDirection = fixedAimDirection; 
             }
         }
@@ -305,7 +312,6 @@ namespace GolfGame.Controllers
 
                         Vector3 testDir = Quaternion.AngleAxis(clampedAngle, Vector3.up) * initialAimDirection;
                         
-                        // CLAMP DISTANCE BETWEEN MIN AND MAX HERE
                         float testDist = Mathf.Clamp(horizontalDiff.magnitude, MinTargetDistance, maxRange);
                         
                         Vector3 testHitPoint = transform.position + testDir * testDist;
@@ -372,6 +378,21 @@ namespace GolfGame.Controllers
         {
             if (GameStateManager.Instance.CurrentState == GameStateManager.GameState.Flight)
             {
+                // 1. DYNAMIC MOMENTUM KILL: Apply heavy drag only when touching the Mud
+                if (isInMud)
+                {
+                    // Rapidly kills forward speed and spin while in contact with the ground
+                    rb.linearDamping = MudLinearDrag; 
+                    rb.angularDamping = MudAngularDrag; 
+                }
+                else
+                {
+                    // Reset to air-resistance levels when it bounces back up
+                    rb.linearDamping = 0f; 
+                    rb.angularDamping = 0.05f; 
+                }
+
+                // 2. EXISTING ROLL LOGIC
                 bool isPureRolling = isGrounded && Mathf.Abs(rb.linearVelocity.y) < 0.2f;
 
                 if (isPureRolling)
@@ -381,23 +402,31 @@ namespace GolfGame.Controllers
 
                     if (currentSpeed > 0.01f)
                     {
-                        float targetSpeed = currentSpeed * RollPreservationFactor;
+                        // Dynamically adjust roll factor based on ground type
+                        float dynamicRollFactor = RollPreservationFactor;
+                        if (currentGroundTag == "Fairway" || currentGroundTag == "Untagged")
+                        {
+                            dynamicRollFactor = Mathf.Min(RollPreservationFactor, 0.985f); // Fairway has more friction
+                        }
+                        else if (currentGroundTag == "Rough")
+                        {
+                            dynamicRollFactor = Mathf.Min(RollPreservationFactor, 0.95f); // Rough stops quickly
+                        }
+                        else if (currentGroundTag == "Green")
+                        {
+                            dynamicRollFactor = Mathf.Max(RollPreservationFactor, 0.995f); // Green rolls very smoothly
+                        }
+
+                        float targetSpeed = currentSpeed * dynamicRollFactor;
                         
                         Vector3 newVelocity = flatVel.normalized * targetSpeed;
-                        newVelocity.y = rb.linearVelocity.y; // Preserve minor physics adjustments on Y
+                        newVelocity.y = rb.linearVelocity.y; 
                         
                         rb.linearVelocity = newVelocity;
                     }
                 }
 
-                if (isGrounded && !wasGroundedLastFrame)
-                {
-                    Vector3 flatVel = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
-                    rb.linearVelocity = new Vector3(flatVel.x * TopspinImpactBoost, rb.linearVelocity.y, flatVel.z * TopspinImpactBoost);
-                }
-                
-                wasGroundedLastFrame = isGrounded;
-
+                // 3. EXISTING STOP LOGIC
                 if (Time.time > flightStartTime + 0.1f && isGrounded)
                 {
                     if (CurrentBall != null && rb.linearVelocity.sqrMagnitude < (CurrentBall.StopThreshold * CurrentBall.StopThreshold))
@@ -414,7 +443,6 @@ namespace GolfGame.Controllers
             {
                 rb.mass = CurrentBall.Mass;
                 
-                // CRITICAL FIX: Since UpdatePhysicsDrag is commented out, we MUST force this to 0 here!
                 rb.linearDamping = 0f; 
                 rb.angularDamping = 0.05f; 
 
@@ -428,51 +456,111 @@ namespace GolfGame.Controllers
 
             PhysicsMaterial bounceMat = new PhysicsMaterial("BallPhysics")
             {
-                bounciness = CurrentBall.Bounciness, 
-                dynamicFriction = 0.85f,             
-                staticFriction = 0.85f,               
-                bounceCombine = PhysicsMaterialCombine.Maximum, 
-                frictionCombine = PhysicsMaterialCombine.Maximum
+                bounciness = CurrentBall.Bounciness, // Keep this dependent on your BallData
+                dynamicFriction = 0.6f,              // Lowered for a smoother roll transition
+                staticFriction = 0.6f,               // Lowered from 1.85f so it doesn't snag
+                bounceCombine = PhysicsMaterialCombine.Average, // CHANGED: Dissipates bounce energy
+                frictionCombine = PhysicsMaterialCombine.Multiply // CHANGED: More realistic friction blending
             };
             
             ballCollider.material = bounceMat;
 
             if (rb != null)
             {
-                // Unlocks Unity's default spin limit so the ball can roll fast
                 rb.maxAngularVelocity = 150f; 
             }
         }
 
-        // private void UpdatePhysicsDrag()
-        // {
-        //     if (isInMud)
-        //     {
-        //         rb.linearDamping = MudLinearDrag;
-        //         rb.angularDamping = MudAngularDrag;
-        //     }
-        //     else if (isGrounded)
-        //     {
-        //         // CRITICAL FIX: Force linear damping to 0 so forward momentum is never drained by the engine.
-        //         rb.linearDamping = 0f; 
-                
-        //         // Lower angular damping so the ball can spin freely for a much longer time.
-        //         rb.angularDamping = 0.05f; 
-        //     }
-        //     else
-        //     {
-        //         // In the air
-        //         rb.linearDamping = CurrentBall != null ? (CurrentBall.WindResistance * 0.02f) : 0.02f;
-        //         rb.angularDamping = 0.01f;
-        //     }
-        // }
-
         private void OnCollisionEnter(Collision collision)
         {
-            if (collision.gameObject.CompareTag("Mud")) isInMud = true;
+            currentGroundTag = collision.gameObject.tag;
+            if (currentGroundTag == "Mud") isInMud = true;
+
+            // Handle Ground Type Bounce Physics
+            if (GameStateManager.Instance != null && GameStateManager.Instance.CurrentState == GameStateManager.GameState.Flight)
+            {
+                bool isFairway = currentGroundTag == "Fairway" || currentGroundTag == "Untagged";
+                
+                if (isFairway)
+                {
+                    bounceCount++;
+                    
+                    if (bounceCount == 1)
+                    {
+                        StartCoroutine(ApplyFirstBouncePhysics());
+                    }
+                    else if (bounceCount == 2 || bounceCount == 3) 
+                    {
+                        // Explicitly half the bounce of the previous
+                        StartCoroutine(ApplyExactBounceDamping());
+                    }
+                    else if (bounceCount > 3)
+                    {
+                        // Force roll after 3 bounces
+                        StartCoroutine(KillBounce());
+                    }
+                }
+            }
+
             collisionCount++;
             isGrounded = collisionCount > 0;
-            //UpdatePhysicsDrag();
+        }
+
+        private System.Collections.IEnumerator ApplyFirstBouncePhysics()
+        {
+            yield return new WaitForFixedUpdate();
+            if (rb != null)
+            {
+                Vector3 vel = rb.linearVelocity;
+                
+                // Calculate horizontal speed
+                Vector3 horizontalVel = new Vector3(vel.x, 0, vel.z);
+                float forwardSpeed = horizontalVel.magnitude;
+
+                // Transfer a percentage of forward speed into upward bounce
+                float transferredSpeed = forwardSpeed * ForwardToBounceConversion;
+
+                // Reduce the forward momentum by the transferred amount
+                float newForwardSpeed = Mathf.Max(0, forwardSpeed - transferredSpeed);
+                horizontalVel = horizontalVel.normalized * newForwardSpeed;
+
+                // Apply the boost and add the transferred kinetic energy to the vertical axis
+                float newUpwardVelocity = (vel.y * FirstBounceBoost) + transferredSpeed;
+                lastBounceVelocityY = newUpwardVelocity; // Store for the next bounce
+
+                rb.linearVelocity = new Vector3(horizontalVel.x, newUpwardVelocity, horizontalVel.z);
+            }
+        }
+
+        private System.Collections.IEnumerator ApplyExactBounceDamping()
+        {
+            yield return new WaitForFixedUpdate();
+            if (rb != null)
+            {
+                Vector3 vel = rb.linearVelocity;
+                
+                // Exactly cut the bounce height in half based on the PREVIOUS bounce, ignoring unity physics material weirdness
+                lastBounceVelocityY *= FairwayBounceDamping; 
+                
+                vel.x *= FairwayForwardDamping;
+                vel.z *= FairwayForwardDamping;
+                vel.y = lastBounceVelocityY;
+
+                rb.linearVelocity = vel;
+            }
+        }
+
+        private System.Collections.IEnumerator KillBounce()
+        {
+            yield return new WaitForFixedUpdate();
+            if (rb != null)
+            {
+                Vector3 vel = rb.linearVelocity;
+                vel.y = 0f; // Kill vertical bounce completely, forcing it to roll
+                vel.x *= FairwayForwardDamping;
+                vel.z *= FairwayForwardDamping;
+                rb.linearVelocity = vel;
+            }
         }
 
         private void OnCollisionExit(Collision collision)
@@ -480,7 +568,6 @@ namespace GolfGame.Controllers
             if (collision.gameObject.CompareTag("Mud")) isInMud = false;
             collisionCount = Mathf.Max(0, collisionCount - 1);
             isGrounded = collisionCount > 0;
-            //UpdatePhysicsDrag();
         }
 
         private void StopBall()
@@ -491,24 +578,21 @@ namespace GolfGame.Controllers
             
             if (BallTrail != null) BallTrail.emitting = false;
             
-            // NEW: Reset tracking states
-            wasGroundedLastFrame = false;
+            // REMOVED: Resetting wasGroundedLastFrame[cite: 4]
             
             GameStateManager.Instance.ChangeState(GameStateManager.GameState.Setup);
         }
+        
         private void OnTriggerEnter(Collider other)
         {
-            // Check if the ball hit the flag/hole
             if (other.CompareTag("Flag"))
             {
                 Debug.Log("[PlayerInput] Reached the flag! Ending the loop.");
                 
-                // Instantly stop the ball from rolling further
                 rb.linearVelocity = Vector3.zero;
                 rb.angularVelocity = Vector3.zero;
                 rb.Sleep();
                 
-                // Break the loop and transition to the Resolution state
                 GameStateManager.Instance.ChangeState(GameStateManager.GameState.Resolution);
             }
         }
@@ -525,7 +609,6 @@ namespace GolfGame.Controllers
                 DragLineRenderer.SetPosition(0, transform.position);
                 DragLineRenderer.SetPosition(1, transform.position);
                 
-                // Initialize with the low force color right when touch begins
                 UpdateDragLineColor(LowForceColor);
             }
         }
@@ -543,25 +626,22 @@ namespace GolfGame.Controllers
                 AccuracyController.SetDragPowerMultiplier(overpowerRatio);
             }
 
-            // --- DYNAMIC COLOR LOGIC ---
-            Color activeColor = LowForceColor; // Defaults to yellow
+            Color activeColor = LowForceColor; 
 
-            // Check if drag passes the minimum threshold to actually take a shot
             if (dragMagnitude >= MinDragToShoot) 
             {
                 if (overpowerRatio >= ExtremeForceThreshold)
                 {
-                    activeColor = ExtremeForceColor; // Extreme pull back (Red)
+                    activeColor = ExtremeForceColor; 
                 }
                 else
                 {
-                    activeColor = NormalForceColor; // Safe normal shot zone (Green)
+                    activeColor = NormalForceColor; 
                 }
             }
             
             UpdateDragLineColor(activeColor);
 
-            // Draw the elastic pull-back line
             if (DragLineRenderer != null)
             {
                 Vector3 visualPullBackDir = -FixedAimDirection;
@@ -578,7 +658,6 @@ namespace GolfGame.Controllers
             if (!isDragging) return;
             isDragging = false;
 
-            // NEW: Hide the pull-back line when the ball is released
             if (DragLineRenderer != null)
             {
                 DragLineRenderer.enabled = false;
@@ -587,7 +666,6 @@ namespace GolfGame.Controllers
             Vector3 dragVector = dragStartPosition - Input.mousePosition;
             float dragMagnitude = GetScaledDragMagnitude(dragVector);
 
-            // Cancel the shot if the drag is below the minimum threshold (e.g. less than 3)
             if (dragMagnitude < MinDragToShoot)
             {
                 if (AccuracyController != null)
@@ -622,7 +700,6 @@ namespace GolfGame.Controllers
         {
             if (DragLineRenderer == null) return;
 
-            // Creates a smooth gradient that fades out to 0 alpha at the end of the line
             Gradient gradient = new Gradient();
             gradient.SetKeys(
                 new GradientColorKey[] { new GradientColorKey(baseColor, 0.0f), new GradientColorKey(baseColor, 1.0f) },
@@ -635,8 +712,6 @@ namespace GolfGame.Controllers
         {
             float dragMagnitude = Mathf.Clamp(GetScaledDragMagnitude(dragVector), 0f, MaxDragDistance);
             
-            // Dragging to 5 (NormalDrag) gives a powerRatio of 1.0 (Hits marker perfectly).
-            // Dragging to 8 gives 1.6x power. Dragging to 3 gives 0.6x power.
             float powerRatio = dragMagnitude / NormalDragDistance;
 
             Vector3 toTarget = activeTargetMarker.transform.position - transform.position;
@@ -650,8 +725,8 @@ namespace GolfGame.Controllers
                 flatDirection = Quaternion.AngleAxis(deviationAngle, Vector3.up) * flatDirection;
 
                 float accuracyAbs = Mathf.Abs(AccuracyController.LockedAccuracyValue);
-                if (accuracyAbs < 0.05f) distanceMultiplier = 1.05f; // Perfect shot bonus
-                else distanceMultiplier = 1f - (accuracyAbs * 0.2f); // Miss penalty
+                if (accuracyAbs < 0.05f) distanceMultiplier = 1.05f; 
+                else distanceMultiplier = 1f - (accuracyAbs * 0.2f); 
             }
 
             Vector3 loftAxis  = Vector3.Cross(flatDirection, Vector3.up);
@@ -659,7 +734,6 @@ namespace GolfGame.Controllers
 
             Vector3 preciseVelocity = CalculateVelocityToHitTarget(activeTargetMarker.transform.position);
             
-            // Apply the drag power ratio directly to the precise speed needed
             float speed = preciseVelocity.magnitude * powerRatio * distanceMultiplier;
 
             return launchDir * speed;

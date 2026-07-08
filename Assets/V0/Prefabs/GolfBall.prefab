@@ -330,6 +330,10 @@ MonoBehaviour:
   GroundAngularDamping: 0.1
   MudAngularDrag: 8
   MudLinearDrag: 2
+  FairwayForwardDamping: 0.9
+  FirstBounceBoost: 1.2
+  ForwardToBounceConversion: 0.4
+  FairwayBounceDamping: 0.5
   CurrentBall: {fileID: 11400000, guid: b284ba16acee41146b521dd9163c16de, type: 2}
   CurrentClub: {fileID: 11400000, guid: 15cf0951eff3747428b474464fb224ac, type: 2}
   AccuracyController: {fileID: 1638904212754295665, guid: ae8846828b186f345931718cb721baf7, type: 3}
@@ -338,7 +342,6 @@ MonoBehaviour:
   MinTargetDistance: 80
   FlagTransform: {fileID: 2418715018993201027, guid: bd4e6f0bc98914d439e9d9c1deae8654, type: 3}
   RollPreservationFactor: 0.999
-  TopspinImpactBoost: 1.15
   LowForceColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   NormalForceColor: {r: 0, g: 1, b: 0, a: 1}
   ExtremeForceColor: {r: 1, g: 0, b: 0, a: 1}
