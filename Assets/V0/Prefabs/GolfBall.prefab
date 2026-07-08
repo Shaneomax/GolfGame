@@ -614,7 +614,7 @@ MonoBehaviour:
   MudAngularDrag: 8
   MudLinearDrag: 4
   FirstBounceImpactScale: 1.1
-  ForwardToBounceConversion: 0.45
+  ForwardToBounceConversion: 0.3
   BounceDecayRatio: 0.5
   ForwardRetentionPerBounce: 0.7
   FirstBounceForwardKill: 0.35
