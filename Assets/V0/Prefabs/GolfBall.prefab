@@ -613,8 +613,16 @@ MonoBehaviour:
   GroundAngularDamping: 0.1
   MudAngularDrag: 8
   MudLinearDrag: 4
-  FairwayForwardDamping: 0.9
-  FirstBounceBoost: 1.2
+  FirstBounceImpactScale: 1.1
   ForwardToBounceConversion: 0.35
-  FairwayBounceDamping: 0.5
+  BounceDecayRatio: 0.5
+  ForwardRetentionPerBounce: 0.75
+  FirstBounceForwardKill: 0.6
+  MaxBounces: 3
+  GreenBounceImpactScale: 0.45
+  GreenMaxBounces: 2
+  GreenRollFactor: 0.972
+  BunkerLinearDrag: 8
+  BunkerAngularDrag: 12
+  BunkerRollFactor: 0.91
   RollPreservationFactor: 0.994
