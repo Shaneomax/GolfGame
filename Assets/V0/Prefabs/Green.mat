@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Rough
+  m_Name: Green
   m_Shader: {fileID: 4800000, guid: 933532a4fcc9baf4fa0491de14d08ed7, type: 3}
   m_Parent: {fileID: 2100000, guid: affc19833a839ec46858bf9e6e25a412, type: 2}
   m_ModifiedSerializedProperties: 0
@@ -36,8 +36,8 @@ Material:
     m_Ints: []
     m_Floats: []
     m_Colors:
-    - _BaseColor: {r: 0.113385536, g: 0.26415092, b: 0.03862584, a: 1}
-    - _Color: {r: 0.113385506, g: 0.2641509, b: 0.03862584, a: 1}
+    - _BaseColor: {r: 0.17718248, g: 0.46226418, b: 0.041429326, a: 1}
+    - _Color: {r: 0.17718244, g: 0.46226412, b: 0.041429304, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
 --- !u!114 &7249703675556386656

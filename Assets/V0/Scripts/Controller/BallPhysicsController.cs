@@ -59,6 +59,10 @@ namespace GolfGame.Controllers
         public float BunkerRollFactor = 0.91f;
 
         [Header("Arcade Roll Settings")]
+        [Tooltip("Roll deceleration on the Fairway. 0.965 = moderate roll-out distance.")]
+        [Range(0.90f, 0.999f)]
+        public float FairwayRollFactor = 0.965f;
+
         [Range(0.90f, 0.999f)]
         public float RollPreservationFactor = 0.994f;
 
@@ -129,7 +133,7 @@ namespace GolfGame.Controllers
                     {
                         float dynamicRollFactor = RollPreservationFactor;
                         if (currentGroundTag == "Fairway" || currentGroundTag == "Untagged")
-                            dynamicRollFactor = Mathf.Min(RollPreservationFactor, 0.965f);
+                            dynamicRollFactor = Mathf.Min(RollPreservationFactor, FairwayRollFactor);
                         else if (currentGroundTag == "Rough")
                             dynamicRollFactor = Mathf.Min(RollPreservationFactor, 0.4f);
                         else if (currentGroundTag == "Green")
