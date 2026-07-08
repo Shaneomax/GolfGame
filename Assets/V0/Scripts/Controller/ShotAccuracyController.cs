@@ -134,7 +134,16 @@ namespace GolfGame.Controllers
         public void SetDragPowerMultiplier(float overpowerRatio)
         {
             // Instantly updates the multiplier used in the Update() loop
-            _dragPowerMultiplier = Mathf.Lerp(1f, 1f + MaxDragSpeedBonus, overpowerRatio);
+            // When drag is near maximum (red colour), boost the needle speed more aggressively
+            if (overpowerRatio > 0.9f)
+            {
+                // Apply a stronger boost (double the MaxDragSpeedBonus) for high drag
+                _dragPowerMultiplier = Mathf.Lerp(1f, 1f + MaxDragSpeedBonus * 2f, overpowerRatio);
+            }
+            else
+            {
+                _dragPowerMultiplier = Mathf.Lerp(1f, 1f + MaxDragSpeedBonus, overpowerRatio);
+            }
         }
     }
 }

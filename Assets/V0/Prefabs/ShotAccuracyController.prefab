@@ -44,12 +44,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b913ccf8d8576cc4db080188810d5bd5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GolfGame.Controllers.ShotAccuracyController
-  ArrowIndicator: {fileID: 0}
-  NeedlePivot: {fileID: 0}
-  NeedleMinAngle: 0
-  NeedleMaxAngle: 180
+  NeedleTransform: {fileID: 0}
+  MinAngle: -45
+  MaxAngle: 45
+  BaseDuration: 1
+  MaxSpeedDuration: 0.2
   DeviationMultiplier: 22
-  BaseHalfSwingDuration: 0.8
-  MaxSpeedMultiplier: 2
-  GlobalNeedleSpeed: 0.32
-  MaxDragSpeedBonus: 3

@@ -168,13 +168,15 @@ namespace GolfGame.Controllers
 
             Color activeColor = LowForceColor; 
             if (overpowerRatio >= ExtremeForceThreshold)
-                activeColor = ExtremeForceColor; 
+                activeColor = ExtremeForceColor;
             else if (overpowerRatio > 0)
-                activeColor = NormalForceColor; 
-
+                activeColor = NormalForceColor;
+                
             UpdateDragLineColor(activeColor);
 
-            Vector3 visualPullBackDir = -fixedAimDirection;
+            // FIX: Lock the visual line strictly to the Z-axis (straight back to camera/player POV)
+            Vector3 visualPullBackDir = Vector3.back; 
+            
             Vector3 endPoint = startPos + (visualPullBackDir * (dragMagnitude * DragVisualMultiplier));
             endPoint.y = startPos.y;
             

@@ -7880,7 +7880,7 @@ MonoBehaviour:
       Size: {x: 0.8, y: 0.8}
       Offset: {x: 0, y: 0}
   CenterOnActivate: 1
-  TargetOffset: {x: -4, y: 2.5, z: 12}
+  TargetOffset: {x: -2, y: 2.5, z: 8}
   Damping: {x: 1, y: 1, z: 1}
   Lookahead:
     Enabled: 0
@@ -11891,7 +11891,7 @@ MeshCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1466105759}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 13400000, guid: 3ce10e8d5aea50b40a71557f7f9f4677, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -17306,7 +17306,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1921582939
 Transform:
   m_ObjectHideFlags: 0
@@ -18634,6 +18634,14 @@ PrefabInstance:
       propertyPath: ArrowIndicator
       value: 
       objectReference: {fileID: 1921582938}
+    - target: {fileID: 1638904212754295665, guid: ae8846828b186f345931718cb721baf7, type: 3}
+      propertyPath: NeedleTransform
+      value: 
+      objectReference: {fileID: 371193351}
+    - target: {fileID: 1638904212754295665, guid: ae8846828b186f345931718cb721baf7, type: 3}
+      propertyPath: MaxDragSpeedBonus
+      value: 3
+      objectReference: {fileID: 0}
     - target: {fileID: 1693968040961912129, guid: ae8846828b186f345931718cb721baf7, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
