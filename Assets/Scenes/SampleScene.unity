@@ -9351,6 +9351,7 @@ GameObject:
   - component: {fileID: 1027567555}
   - component: {fileID: 1027567554}
   - component: {fileID: 1027567553}
+  - component: {fileID: 1027567557}
   m_Layer: 0
   m_Name: Green
   m_TagString: Green
@@ -9452,6 +9453,19 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1027567557
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1027567552}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0ff4100e25767954b93251e44c637f66, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GolfGame.Environment.GroundSurface
+  SurfaceData: {fileID: 11400000, guid: f6b66d2a82130a541af7d53fb3ee580e, type: 2}
 --- !u!1 &1028097721
 GameObject:
   m_ObjectHideFlags: 0
@@ -11990,13 +12004,14 @@ GameObject:
   - component: {fileID: 1466105762}
   - component: {fileID: 1466105761}
   - component: {fileID: 1466105760}
+  - component: {fileID: 1466105764}
   m_Layer: 0
   m_Name: FariwayGround
   m_TagString: Fairway
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!64 &1466105760
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -12091,6 +12106,19 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1466105764
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1466105759}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0ff4100e25767954b93251e44c637f66, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GolfGame.Environment.GroundSurface
+  SurfaceData: {fileID: 11400000, guid: 02b0dd1f2fc066140a151eb01b0b1e97, type: 2}
 --- !u!1 &1480817566
 GameObject:
   m_ObjectHideFlags: 0
@@ -17649,13 +17677,14 @@ GameObject:
   - component: {fileID: 1957281495}
   - component: {fileID: 1957281494}
   - component: {fileID: 1957281493}
+  - component: {fileID: 1957281497}
   m_Layer: 0
   m_Name: BUnker
   m_TagString: Bunker
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!64 &1957281493
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -17750,6 +17779,19 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1957281497
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1957281492}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0ff4100e25767954b93251e44c637f66, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GolfGame.Environment.GroundSurface
+  SurfaceData: {fileID: 11400000, guid: bcfe372e8eb0fa342a4457e3d4b32c6d, type: 2}
 --- !u!1 &1957619943
 GameObject:
   m_ObjectHideFlags: 0

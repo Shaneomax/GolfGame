@@ -609,21 +609,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4bc70973db639a3418f16448c192f1b1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GolfGame.Controllers.BallPhysicsController
-  GroundLinearDamping: 0.15
-  GroundAngularDamping: 0.1
-  MudAngularDrag: 8
-  MudLinearDrag: 4
-  FirstBounceImpactScale: 1.1
-  ForwardToBounceConversion: 0.3
-  BounceDecayRatio: 0.5
-  ForwardRetentionPerBounce: 0.7
-  FirstBounceForwardKill: 0.35
-  MaxBounces: 3
-  GreenBounceImpactScale: 0.45
-  GreenMaxBounces: 1
-  GreenRollFactor: 0.972
-  BunkerLinearDrag: 8
-  BunkerAngularDrag: 12
-  BunkerRollFactor: 0.91
-  FairwayRollFactor: 0.999
-  RollPreservationFactor: 0.994
+  RollPreservationFactor: 0.999
+  DefaultGround: {fileID: 11400000, guid: 02b0dd1f2fc066140a151eb01b0b1e97, type: 2}
