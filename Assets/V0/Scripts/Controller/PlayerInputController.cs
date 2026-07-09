@@ -56,7 +56,7 @@ namespace GolfGame.Controllers
             rb = GetComponent<Rigidbody>();
             mainCamera = Camera.main;
             
-            if (AccuracyController == null)
+            if (AccuracyController == null || !AccuracyController.gameObject.scene.IsValid())
                 AccuracyController = FindFirstObjectByType<ShotAccuracyController>();
             
             if (AimVisuals == null)
@@ -259,7 +259,8 @@ namespace GolfGame.Controllers
 
             if (AccuracyController != null)
             {
-                AccuracyController.SetDragPowerMultiplier(overpowerRatio);
+                float? threshold = AimVisuals != null ? AimVisuals.ExtremeForceThreshold : (float?)null;
+                AccuracyController.SetDragPowerMultiplier(overpowerRatio, threshold);
             }
 
             if (AimVisuals != null)

@@ -24,19 +24,26 @@ namespace GolfGame.Controllers
         public float GlobalNeedleSpeed = 0.32f;
 
         [Header("Drag Power Difficulty")]
-        [Tooltip("Maximum extra speed multiplier applied to the needle at maximum drag overpower.")]
-        public float MaxDragSpeedBonus = 3f;
+        [Tooltip("Match this to the ExtremeForceThreshold in your AimVisualsController (default is 0.5).")]
+        public float ExtremeForceThreshold = 0.5f;
+
+        [Tooltip("How much faster the needle goes during a normal overpower (Yellow/Green).")]
+        public float OverpowerSpeedMultiplier = 1.5f;
+
+        [Tooltip("How much faster the needle goes when drag reaches the RED zone. Set high (e.g., 4) for a massive speed increase!")]
+        public float RedZoneSpeedMultiplier = 4.0f;
 
         public float LockedAccuracyValue { get; private set; }
         public bool IsLocked { get; private set; }
 
         private ClubData _currentClub;
         private float _swingProgress = 0f;
-        private float _dragPowerMultiplier = 1f;
+        private float _baseGlobalNeedleSpeed;
         private int _sweepDirection = 1;
 
         private void Start()
         {
+            _baseGlobalNeedleSpeed = GlobalNeedleSpeed;
             if (ArrowIndicator != null) ArrowIndicator.SetActive(false);
             if (GameStateManager.Instance != null)
                 GameStateManager.Instance.OnStateEnter += OnStateEnter;
@@ -60,7 +67,7 @@ namespace GolfGame.Controllers
             LockedAccuracyValue = 0f;
             _swingProgress = 0.5f; // Start the needle in the middle
             _sweepDirection = 1;
-            _dragPowerMultiplier = 1f;
+            GlobalNeedleSpeed = _baseGlobalNeedleSpeed;
 
             if (ArrowIndicator != null) ArrowIndicator.SetActive(true);
         }
@@ -72,8 +79,6 @@ namespace GolfGame.Controllers
 
         private void Update()
         {
-            // We handle the needle swing manually here every frame!
-            // This allows you to change variables in the inspector at runtime and see instant results.
             if (!IsLocked && ArrowIndicator != null && ArrowIndicator.activeSelf && NeedlePivot != null)
             {
                 float accuracyStat = _currentClub != null ? _currentClub.Accuracy : 50f;
@@ -82,7 +87,7 @@ namespace GolfGame.Controllers
                 float speedMultiplier = Mathf.Lerp(1f, MaxSpeedMultiplier, t);
                 
                 // Combine all speed factors dynamically
-                float currentHalfDuration = BaseHalfSwingDuration / (speedMultiplier * GlobalNeedleSpeed * _dragPowerMultiplier);
+                float currentHalfDuration = BaseHalfSwingDuration / (speedMultiplier * GlobalNeedleSpeed);
                 
                 // Calculate how much progress to add this exact frame
                 float progressSpeed = 1f / currentHalfDuration;
@@ -119,7 +124,6 @@ namespace GolfGame.Controllers
         {
             if (IsLocked) return;
             IsLocked = true;
-            
             LockedAccuracyValue = (_swingProgress - 0.5f) * 2f;
         }
 
@@ -131,19 +135,25 @@ namespace GolfGame.Controllers
 
         public void SetClub(ClubData club) => _currentClub = club;
 
-        public void SetDragPowerMultiplier(float overpowerRatio)
+        public void SetDragPowerMultiplier(float overpowerRatio, float? customThreshold = null)
         {
+            float threshold = customThreshold ?? ExtremeForceThreshold;
+            float multiplier = 1f;
+
             // Instantly updates the multiplier used in the Update() loop
-            // When drag is near maximum (red colour), boost the needle speed more aggressively
-            if (overpowerRatio > 0.9f)
+            if (overpowerRatio >= threshold)
             {
-                // Apply a stronger boost (double the MaxDragSpeedBonus) for high drag
-                _dragPowerMultiplier = Mathf.Lerp(1f, 1f + MaxDragSpeedBonus * 2f, overpowerRatio);
+                // RED ZONE: Instantly snap to the high-speed multiplier
+                multiplier = RedZoneSpeedMultiplier;
             }
-            else
+            else if (overpowerRatio > 0f)
             {
-                _dragPowerMultiplier = Mathf.Lerp(1f, 1f + MaxDragSpeedBonus, overpowerRatio);
+                // NORMAL OVERPOWER: Slightly scale up speed
+                multiplier = Mathf.Lerp(1f, OverpowerSpeedMultiplier, overpowerRatio / threshold);
             }
+            
+            // Directly modify GlobalNeedleSpeed so the value visibly changes in the Unity Inspector
+            GlobalNeedleSpeed = _baseGlobalNeedleSpeed * multiplier;
         }
     }
 }

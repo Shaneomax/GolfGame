@@ -23,7 +23,6 @@ namespace GolfGame.Controllers
         private float lastBounceUpVelocity = 0f;
         private float flightStartTime = 0f;
         
-        // This replaces all your booleans (isInMud, isInBunker, etc.)[cite: 1]
         private GroundData currentGround;
 
         private void Awake()
@@ -33,11 +32,74 @@ namespace GolfGame.Controllers
             currentGround = DefaultGround;
         }
 
-        public void Initialize(BallData ballData) { /* Keep your existing logic */ }
-        public void NotifyFlightStarted() { /* Keep your existing logic */ }
-        private void ApplyBallData() { /* Keep your existing logic */ }
-        private void ApplyBounciness() { /* Keep your existing logic */ }
-        private void StopBall() { /* Keep your existing logic */ }
+        // --- RESTORED LOGIC START ---
+
+        public void Initialize(BallData ballData)
+        {
+            currentBall = ballData;
+            ApplyBallData();
+        }
+
+        public void NotifyFlightStarted()
+        {
+            flightStartTime = Time.time;
+            bounceCount = 0;
+            lastBounceUpVelocity = 0f;
+            rb.WakeUp();
+        }
+
+        private void ApplyBallData()
+        {
+            if (currentBall != null && rb != null)
+            {
+                rb.mass = currentBall.Mass;
+                rb.linearDamping = 0f; 
+                rb.angularDamping = 0.05f; 
+                ApplyBounciness();
+            }
+        }
+
+        private void ApplyBounciness()
+        {
+            if (ballCollider == null || currentBall == null) return;
+            // Set bounciness to 0 — we handle all bouncing ourselves for full control
+            PhysicsMaterial bounceMat = new PhysicsMaterial("BallPhysics")
+            {
+                bounciness = 0f,
+                dynamicFriction = 0.6f,
+                staticFriction = 0.6f,
+                bounceCombine = PhysicsMaterialCombine.Minimum,
+                frictionCombine = PhysicsMaterialCombine.Multiply
+            };
+            ballCollider.material = bounceMat;
+            if (rb != null) rb.maxAngularVelocity = 150f; 
+        }
+
+        // Detect hitting the flag to end the hole
+        private void OnTriggerEnter(Collider other)
+        {
+            if (other.CompareTag("Flag"))
+            {
+                Debug.Log("[PlayerInput] Reached the flag! Ending the loop.");
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+                rb.Sleep();
+                if (GameStateManager.Instance != null)
+                    GameStateManager.Instance.ChangeState(GameStateManager.GameState.Resolution);
+            }
+        }
+
+        // Stops the ball and loops back to the Setup state for the next shot
+        private void StopBall()
+        {
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            rb.Sleep(); 
+            if (GameStateManager.Instance != null)
+                GameStateManager.Instance.ChangeState(GameStateManager.GameState.Setup);
+        }
+
+        // --- RESTORED LOGIC END ---
 
         private void FixedUpdate()
         {
@@ -66,7 +128,7 @@ namespace GolfGame.Controllers
                     }
                 }
 
-                // 3. STOP LOGIC (Keep your existing logic)
+                // 3. STOP LOGIC
                 if (Time.time > flightStartTime + 0.1f && isGrounded)
                 {
                     if (currentBall != null && rb.linearVelocity.sqrMagnitude < (currentBall.StopThreshold * currentBall.StopThreshold))
