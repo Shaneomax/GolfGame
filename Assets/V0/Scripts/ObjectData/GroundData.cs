@@ -40,8 +40,8 @@ namespace GolfGame.Data
         public float ForwardRetentionPerBounce = 0.75f;
 
         [Header("Roll Settings")]
-        [Tooltip("Roll deceleration factor. 0.999 = rolls forever, 0.4 = stops incredibly fast.")]
-        [Range(0.1f, 0.999f)]
-        public float RollFactor = 0.965f;
+        [Tooltip("Roll deceleration factor. 1 = rolls perfectly, 0 = stops immediately.")]
+        [Range(0f, 1f)]
+        public float RollFactor = 0.9f;
     }
 }
