@@ -21,6 +21,7 @@ namespace GolfGame.Controllers
         private bool isGrounded = false;
         private int bounceCount = 0;
         private float lastBounceUpVelocity = 0f;
+        private float lastRollingSpeed = 0f;
         private float flightStartTime = 0f;
         
         private GroundData currentGround;
@@ -118,14 +119,45 @@ namespace GolfGame.Controllers
 
                     if (currentSpeed > 0.01f)
                     {
-                        // Use the RollFactor directly from the ScriptableObject
-                        float dynamicRollFactor = Mathf.Min(RollPreservationFactor, currentGround.RollFactor);
-                        
-                        float targetSpeed = currentSpeed * dynamicRollFactor;
-                        Vector3 newVelocity = flatVel.normalized * targetSpeed;
-                        newVelocity.y = rb.linearVelocity.y; 
-                        rb.linearVelocity = newVelocity;
+                        if (currentGround.UseExtraRoll)
+                        {
+                            if (currentGround.ExtraRollFactor <= 0.01f)
+                            {
+                                // 0 = Ball stops instantly
+                                rb.linearVelocity = new Vector3(0, rb.linearVelocity.y, 0);
+                                rb.angularVelocity = Vector3.zero;
+                                lastRollingSpeed = 0f;
+                            }
+                            else if (currentGround.ExtraRollFactor >= 0.99f)
+                            {
+                                // 1 = Unstoppable. Just ensure it never loses speed from friction.
+                                if (lastRollingSpeed > 0f && currentSpeed < lastRollingSpeed)
+                                {
+                                    currentSpeed = lastRollingSpeed; // Restore speed to prevent decay
+                                }
+                                else
+                                {
+                                    lastRollingSpeed = currentSpeed; // Update to new higher speed (e.g. going downhill)
+                                }
+                                
+                                rb.linearVelocity = new Vector3(flatVel.normalized.x * currentSpeed, rb.linearVelocity.y, flatVel.normalized.z * currentSpeed);
+                            }
+                            else if (currentGround.ExtraRollFactor < 0.5f)
+                            {
+                                // 0.0 to 0.5 = Extra artificial drag
+                                float killFactor = currentGround.ExtraRollFactor / 0.5f; 
+                                float targetSpeed = currentSpeed * killFactor;
+                                rb.linearVelocity = new Vector3(flatVel.normalized.x * targetSpeed, rb.linearVelocity.y, flatVel.normalized.z * targetSpeed);
+                                lastRollingSpeed = 0f; // Reset tracking
+                            }
+                            // If exactly 0.5, let natural friction do its thing
+                        }
                     }
+                }
+                else
+                {
+                    // Reset speed tracking when airborne or bouncing
+                    lastRollingSpeed = 0f;
                 }
 
                 // 3. STOP LOGIC

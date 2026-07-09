@@ -39,9 +39,12 @@ namespace GolfGame.Data
         [Range(0f, 1f)]
         public float ForwardRetentionPerBounce = 0.75f;
 
-        [Header("Roll Settings")]
-        [Tooltip("Roll deceleration factor. 1 = rolls perfectly, 0 = stops immediately.")]
+        [Header("Extra Roll Settings")]
+        [Tooltip("Enable to apply extra artificial roll logic (overriding natural friction).")]
+        public bool UseExtraRoll = false;
+        
+        [Tooltip("0 = Ball stops instantly. 0.5 = Natural Unity friction. 1 = Ball rolls infinitely without stopping.")]
         [Range(0f, 1f)]
-        public float RollFactor = 0.9f;
+        public float ExtraRollFactor = 0.5f;
     }
 }
