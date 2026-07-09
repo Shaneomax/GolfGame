@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ClubData
   ClubName: BeginnerDriver
   ClubDescription: 
-  Power: 200
+  Power: 150
   Accuracy: 50
   TopSpin: 0
   BackSpin: 0

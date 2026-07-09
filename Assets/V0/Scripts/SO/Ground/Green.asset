@@ -22,4 +22,5 @@ MonoBehaviour:
   ForwardToBounceConversion: 0.2
   BounceDecayRatio: 0.35
   ForwardRetentionPerBounce: 0.5
-  RollFactor: 0.965
+  UseExtraRoll: 1
+  ExtraRollFactor: 0.4

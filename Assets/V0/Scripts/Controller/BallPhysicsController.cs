@@ -8,8 +8,8 @@ namespace GolfGame.Controllers
     public class BallPhysicsController : MonoBehaviour
     {
         [Header("Global Modifiers")]
-        [Range(0.90f, 0.999f)]
-        public float RollPreservationFactor = 0.994f;
+        [Range(0f, 1f)]
+        public float RollPreservationFactor = 0.9f;
         public GroundData DefaultGround; // Fallback just in case!
 
         private Rigidbody rb;
@@ -119,39 +119,24 @@ namespace GolfGame.Controllers
 
                     if (currentSpeed > 0.01f)
                     {
-                        if (currentGround.UseExtraRoll)
+                        if (currentGround.UseExtraRoll && currentGround.ExtraRollFactor > 0f)
                         {
-                            if (currentGround.ExtraRollFactor <= 0.01f)
+                            if (lastRollingSpeed > 0f && currentSpeed < lastRollingSpeed)
                             {
-                                // 0 = Ball stops instantly
-                                rb.linearVelocity = new Vector3(0, rb.linearVelocity.y, 0);
-                                rb.angularVelocity = Vector3.zero;
-                                lastRollingSpeed = 0f;
-                            }
-                            else if (currentGround.ExtraRollFactor >= 0.99f)
-                            {
-                                // 1 = Unstoppable. Just ensure it never loses speed from friction.
-                                if (lastRollingSpeed > 0f && currentSpeed < lastRollingSpeed)
-                                {
-                                    currentSpeed = lastRollingSpeed; // Restore speed to prevent decay
-                                }
-                                else
-                                {
-                                    lastRollingSpeed = currentSpeed; // Update to new higher speed (e.g. going downhill)
-                                }
+                                // Calculate how much speed was lost to natural friction
+                                float speedLost = lastRollingSpeed - currentSpeed;
+                                
+                                // ExtraRollFactor dictates how much of that lost speed we restore
+                                // 0 = restore nothing (natural friction). 1 = restore 100% (unstoppable).
+                                float speedToRestore = speedLost * currentGround.ExtraRollFactor;
+                                currentSpeed += speedToRestore;
                                 
                                 rb.linearVelocity = new Vector3(flatVel.normalized.x * currentSpeed, rb.linearVelocity.y, flatVel.normalized.z * currentSpeed);
                             }
-                            else if (currentGround.ExtraRollFactor < 0.5f)
-                            {
-                                // 0.0 to 0.5 = Extra artificial drag
-                                float killFactor = currentGround.ExtraRollFactor / 0.5f; 
-                                float targetSpeed = currentSpeed * killFactor;
-                                rb.linearVelocity = new Vector3(flatVel.normalized.x * targetSpeed, rb.linearVelocity.y, flatVel.normalized.z * targetSpeed);
-                                lastRollingSpeed = 0f; // Reset tracking
-                            }
-                            // If exactly 0.5, let natural friction do its thing
                         }
+                        
+                        // Always track the speed so we can compare next frame
+                        lastRollingSpeed = currentSpeed;
                     }
                 }
                 else
