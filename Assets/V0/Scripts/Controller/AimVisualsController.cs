@@ -77,6 +77,7 @@ namespace GolfGame.Controllers
             {
                 if (activeTargetMarker != null) activeTargetMarker.SetActive(false);
                 if (BallTrail != null) BallTrail.emitting = true;
+                
             }
         }
 
@@ -178,6 +179,37 @@ namespace GolfGame.Controllers
             Vector3 visualPullBackDir = Vector3.back; 
             
             Vector3 endPoint = startPos + (visualPullBackDir * (dragMagnitude * DragVisualMultiplier));
+            endPoint.y = startPos.y;
+            
+            DragLineRenderer.SetPosition(0, startPos);
+            DragLineRenderer.SetPosition(1, endPoint);
+        }
+
+        public void UpdatePuttingLine(float dragMagnitude, float overpowerRatio, Vector3 startPos)
+        {
+            if (DragLineRenderer == null) return;
+            DragLineRenderer.enabled = true;
+
+            Color activeColor = LowForceColor; 
+            if (overpowerRatio >= ExtremeForceThreshold)
+                activeColor = ExtremeForceColor;
+            else if (overpowerRatio > 0)
+                activeColor = NormalForceColor;
+                
+            UpdateDragLineColor(activeColor);
+
+            Vector3 forwardDir = Vector3.forward;
+            if (FlagTransform != null)
+            {
+                Vector3 toFlag = FlagTransform.position - startPos;
+                forwardDir = new Vector3(toFlag.x, 0f, toFlag.z).normalized;
+            }
+            
+            // For putting, we show the line going FORWARD, simulating the path.
+            // Multiply by a factor to make it look like expected roll distance.
+            float puttingVisualMultiplier = DragVisualMultiplier * 12f; 
+            
+            Vector3 endPoint = startPos + (forwardDir * (dragMagnitude * puttingVisualMultiplier));
             endPoint.y = startPos.y;
             
             DragLineRenderer.SetPosition(0, startPos);

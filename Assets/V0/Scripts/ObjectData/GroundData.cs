@@ -8,6 +8,9 @@ namespace GolfGame.Data
         [Header("Identification")]
         public string GroundName;
         public string GroundTag = "Untagged";
+        
+        [Tooltip("True if this is a putting green/NiceOn surface.")]
+        public bool IsNiceOn = false;
 
         [Header("Friction & Drag")]
         [Tooltip("Linear drag applied while rolling/moving through this ground type.")]

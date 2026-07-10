@@ -66,6 +66,7 @@ namespace GolfGame.Controllers
                 PhysicsController = GetComponent<BallPhysicsController>();
         }
 
+
         private void Start()
         {
             ApplyBallData();
@@ -237,6 +238,29 @@ namespace GolfGame.Controllers
             return Quaternion.AngleAxis(DefaultLoftAngle, loftAxis) * flatDirection * speed;
         }
 
+        private bool IsPuttingMode()
+        {
+            return PhysicsController != null && PhysicsController.CurrentGround != null && PhysicsController.CurrentGround.IsNiceOn;
+        }
+
+        private Vector3 CalculatePuttingVelocity(Vector3 dragVector)
+        {
+            float dragMagnitude = Mathf.Clamp(GetScaledDragMagnitude(dragVector), 0f, MaxDragDistance);
+            float powerRatio = dragMagnitude / NormalDragDistance;
+            
+            Vector3 flatDirection = Vector3.forward;
+            if (AimVisuals != null && AimVisuals.FlagTransform != null)
+            {
+                Vector3 toFlag = AimVisuals.FlagTransform.position - transform.position;
+                flatDirection = new Vector3(toFlag.x, 0f, toFlag.z).normalized;
+            }
+
+            float maxClubPower = CurrentClub != null ? CurrentClub.Power : 15f;
+            float maxSpeed = maxClubPower * PowerScale * 0.35f; // Slow power for putting
+            
+            return flatDirection * (maxSpeed * powerRatio);
+        }
+
         private void OnMouseDown()
         {
             if (GameStateManager.Instance.CurrentState != GameStateManager.GameState.Aiming) return;
@@ -245,7 +269,14 @@ namespace GolfGame.Controllers
             
             if (AimVisuals != null)
             {
-                AimVisuals.UpdateDragLine(0, 0, transform.position);
+                if (IsPuttingMode())
+                {
+                    AimVisuals.UpdatePuttingLine(0, 0, transform.position);
+                }
+                else
+                {
+                    AimVisuals.UpdateDragLine(0, 0, transform.position);
+                }
             }
         }
 
@@ -265,7 +296,14 @@ namespace GolfGame.Controllers
 
             if (AimVisuals != null)
             {
-                AimVisuals.UpdateDragLine(dragMagnitude, overpowerRatio, transform.position);
+                if (IsPuttingMode())
+                {
+                    AimVisuals.UpdatePuttingLine(dragMagnitude, overpowerRatio, transform.position);
+                }
+                else
+                {
+                    AimVisuals.UpdateDragLine(dragMagnitude, overpowerRatio, transform.position);
+                }
             }
         }
 
@@ -296,9 +334,16 @@ namespace GolfGame.Controllers
 
             if (AccuracyController != null) AccuracyController.LockAccuracy();
 
-            if (AimVisuals == null || AimVisuals.ActiveTargetMarker == null) return;
-
-            Vector3 launchVelocity = CalculateDeviatedShotVelocity(dragVector);
+            Vector3 launchVelocity;
+            if (IsPuttingMode())
+            {
+                launchVelocity = CalculatePuttingVelocity(dragVector);
+            }
+            else
+            {
+                if (AimVisuals == null || AimVisuals.ActiveTargetMarker == null) return;
+                launchVelocity = CalculateDeviatedShotVelocity(dragVector);
+            }
 
             if (launchVelocity.sqrMagnitude > 0.1f)
             {

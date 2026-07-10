@@ -25,6 +25,7 @@ namespace GolfGame.Controllers
         private float flightStartTime = 0f;
         
         private GroundData currentGround;
+        public GroundData CurrentGround => currentGround;
 
         private void Awake()
         {
@@ -97,7 +98,16 @@ namespace GolfGame.Controllers
             rb.angularVelocity = Vector3.zero;
             rb.Sleep(); 
             if (GameStateManager.Instance != null)
-                GameStateManager.Instance.ChangeState(GameStateManager.GameState.Setup);
+            {
+                if (currentGround != null && currentGround.IsNiceOn)
+                {
+                    GameStateManager.Instance.ChangeState(GameStateManager.GameState.Aiming);
+                }
+                else
+                {
+                    GameStateManager.Instance.ChangeState(GameStateManager.GameState.Setup);
+                }
+            }
         }
 
         // --- RESTORED LOGIC END ---

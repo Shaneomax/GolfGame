@@ -264,7 +264,18 @@ namespace GolfGame.Controllers
                 AimTargetAnchor.position = ballTransform.position;
 
                 Vector3 aimDir = ballInput.FixedAimDirection;
-                if (ballInput.ActiveTargetMarker != null)
+                
+                bool isPutting = ballInput.PhysicsController != null && 
+                                 ballInput.PhysicsController.CurrentGround != null && 
+                                 ballInput.PhysicsController.CurrentGround.IsNiceOn;
+                                 
+                if (isPutting && ballInput.AimVisuals != null && ballInput.AimVisuals.FlagTransform != null)
+                {
+                    Vector3 toFlag = ballInput.AimVisuals.FlagTransform.position - ballTransform.position;
+                    toFlag.y = 0f;
+                    if (toFlag.sqrMagnitude > 0.001f) aimDir = toFlag.normalized;
+                }
+                else if (ballInput.ActiveTargetMarker != null)
                 {
                     Vector3 toMarker = ballInput.ActiveTargetMarker.transform.position - ballTransform.position;
                     toMarker.y = 0f;
