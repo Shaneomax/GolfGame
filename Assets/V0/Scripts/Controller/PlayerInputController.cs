@@ -46,7 +46,6 @@ namespace GolfGame.Controllers
         private bool isDragging = false;
         private bool isDraggingTarget = false;
 
-        // Facade properties for external scripts (like CinemachineAimController)
         public bool IsDraggingTarget => isDraggingTarget;
         public GameObject ActiveTargetMarker => AimVisuals != null ? AimVisuals.ActiveTargetMarker : null;
         public Vector3 FixedAimDirection => AimVisuals != null ? AimVisuals.FixedAimDirection : Vector3.forward;
@@ -65,7 +64,6 @@ namespace GolfGame.Controllers
             if (PhysicsController == null)
                 PhysicsController = GetComponent<BallPhysicsController>();
         }
-
 
         private void Start()
         {
@@ -248,17 +246,23 @@ namespace GolfGame.Controllers
             float dragMagnitude = Mathf.Clamp(GetScaledDragMagnitude(dragVector), 0f, MaxDragDistance);
             float powerRatio = dragMagnitude / NormalDragDistance;
             
-            Vector3 flatDirection = Vector3.forward;
+            Vector3 baseForwardDir = Vector3.forward;
             if (AimVisuals != null && AimVisuals.FlagTransform != null)
             {
                 Vector3 toFlag = AimVisuals.FlagTransform.position - transform.position;
-                flatDirection = new Vector3(toFlag.x, 0f, toFlag.z).normalized;
+                baseForwardDir = new Vector3(toFlag.x, 0f, toFlag.z).normalized;
             }
 
-            float maxClubPower = CurrentClub != null ? CurrentClub.Power : 15f;
-            float maxSpeed = maxClubPower * PowerScale * 0.35f; // Slow power for putting
+            // Calculate the angle based on horizontal vs vertical drag
+            float dragAngle = Mathf.Atan2(dragVector.x, dragVector.y) * Mathf.Rad2Deg;
             
-            return flatDirection * (maxSpeed * powerRatio);
+            // Apply the slingshot rotation to the final launch velocity
+            Vector3 finalAimDir = Quaternion.Euler(0f, dragAngle, 0f) * baseForwardDir;
+
+            float maxClubPower = CurrentClub != null ? CurrentClub.Power : 15f;
+            float maxSpeed = maxClubPower * PowerScale * 0.35f; 
+            
+            return finalAimDir * (maxSpeed * powerRatio);
         }
 
         private void OnMouseDown()
@@ -271,7 +275,7 @@ namespace GolfGame.Controllers
             {
                 if (IsPuttingMode())
                 {
-                    AimVisuals.UpdatePuttingLine(0, 0, transform.position);
+                    AimVisuals.UpdatePuttingLine(0, 0, transform.position, 0f);
                 }
                 else
                 {
@@ -288,6 +292,9 @@ namespace GolfGame.Controllers
             float dragMagnitude = Mathf.Clamp(GetScaledDragMagnitude(dragVector), 0f, MaxDragDistance);
             float overpowerRatio = Mathf.InverseLerp(NormalDragDistance, MaxDragDistance, dragMagnitude);
 
+            // Calculate the angle. If pulling straight down, dragVector.x is 0, so angle is 0.
+            float dragAngle = Mathf.Atan2(dragVector.x, dragVector.y) * Mathf.Rad2Deg;
+
             if (AccuracyController != null)
             {
                 float? threshold = AimVisuals != null ? AimVisuals.ExtremeForceThreshold : (float?)null;
@@ -298,7 +305,7 @@ namespace GolfGame.Controllers
             {
                 if (IsPuttingMode())
                 {
-                    AimVisuals.UpdatePuttingLine(dragMagnitude, overpowerRatio, transform.position);
+                    AimVisuals.UpdatePuttingLine(dragMagnitude, overpowerRatio, transform.position, dragAngle);
                 }
                 else
                 {

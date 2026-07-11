@@ -15,6 +15,10 @@ namespace GolfGame.Controllers
         public TrailRenderer BallTrail;
         public float DragVisualMultiplier = 0.5f;
 
+        [Header("Putting Settings")]
+        [Tooltip("Multiplier for how far the putting line reaches. Increase this in the Inspector to make the line longer.")]
+        public float PuttingLineLengthMultiplier = 12f;
+
         [Header("Line Dynamic Colors")]
         public Color LowForceColor = Color.yellow;
         public Color NormalForceColor = Color.green;
@@ -175,7 +179,6 @@ namespace GolfGame.Controllers
                 
             UpdateDragLineColor(activeColor);
 
-            // FIX: Lock the visual line strictly to the Z-axis (straight back to camera/player POV)
             Vector3 visualPullBackDir = Vector3.back; 
             
             Vector3 endPoint = startPos + (visualPullBackDir * (dragMagnitude * DragVisualMultiplier));
@@ -185,7 +188,7 @@ namespace GolfGame.Controllers
             DragLineRenderer.SetPosition(1, endPoint);
         }
 
-        public void UpdatePuttingLine(float dragMagnitude, float overpowerRatio, Vector3 startPos)
+        public void UpdatePuttingLine(float dragMagnitude, float overpowerRatio, Vector3 startPos, float dragAngle)
         {
             if (DragLineRenderer == null) return;
             DragLineRenderer.enabled = true;
@@ -198,18 +201,20 @@ namespace GolfGame.Controllers
                 
             UpdateDragLineColor(activeColor);
 
-            Vector3 forwardDir = Vector3.forward;
+            Vector3 baseForwardDir = Vector3.forward;
             if (FlagTransform != null)
             {
                 Vector3 toFlag = FlagTransform.position - startPos;
-                forwardDir = new Vector3(toFlag.x, 0f, toFlag.z).normalized;
+                baseForwardDir = new Vector3(toFlag.x, 0f, toFlag.z).normalized;
             }
             
-            // For putting, we show the line going FORWARD, simulating the path.
-            // Multiply by a factor to make it look like expected roll distance.
-            float puttingVisualMultiplier = DragVisualMultiplier * 12f; 
+            // Rotate the base direction based on the player's drag (slingshot aim)
+            Vector3 finalAimDir = Quaternion.Euler(0f, dragAngle, 0f) * baseForwardDir;
             
-            Vector3 endPoint = startPos + (forwardDir * (dragMagnitude * puttingVisualMultiplier));
+            // Use the new exposed variable
+            float puttingVisualMultiplier = DragVisualMultiplier * PuttingLineLengthMultiplier; 
+            
+            Vector3 endPoint = startPos + (finalAimDir * (dragMagnitude * puttingVisualMultiplier));
             endPoint.y = startPos.y;
             
             DragLineRenderer.SetPosition(0, startPos);

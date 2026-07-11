@@ -98,15 +98,36 @@ namespace GolfGame.Controllers
             }
             else if (newState == GameStateManager.GameState.Flight)
             {
-                _flightSubState = 0; 
-                
                 if (ballTransform != null && ballInput != null && ballInput.ActiveTargetMarker != null)
                 {
                     _shotStartPosition = ballTransform.position;
                     _shotTargetPosition = ballInput.ActiveTargetMarker.transform.position;
                     _totalShotDistance = Vector3.Distance(new Vector3(_shotStartPosition.x, 0, _shotStartPosition.z), new Vector3(_shotTargetPosition.x, 0, _shotTargetPosition.z));
 
+                    // Configure all cameras first to ensure references and anchors are set
                     ConfigureFlightCameras();
+
+                    // Check if we are currently on the green (NiceOn)
+                    bool isPutting = ballInput.PhysicsController != null && 
+                                     ballInput.PhysicsController.CurrentGround != null && 
+                                     ballInput.PhysicsController.CurrentGround.IsNiceOn;
+
+                    if (isPutting)
+                    {
+                        // Instantly bypass Launch, Apex, and Landing phases
+                        _flightSubState = 3; 
+                        
+                        // Disable the FlightCamera priority that was just activated by ConfigureFlightCameras
+                        if (FlightCamera != null) FlightCamera.Priority = 0;
+                        
+                        // Immediately activate the RollCamera to tightly follow the putt
+                        if (RollCamera != null) RollCamera.Priority = 10;
+                    }
+                    else
+                    {
+                        // Standard shot, start at the Launch phase
+                        _flightSubState = 0; 
+                    }
                 }
             }
         }
@@ -140,7 +161,6 @@ namespace GolfGame.Controllers
             {
                 LandingCamera.LookAt = ballTransform;
                 LandingCamera.Follow = null;
-                // Changed to + shotRight to place it on the opposite side (-x visually)
                 LandingCamera.transform.position = _shotTargetPosition + (shotDirection * 12f) + (shotRight * 4f) + (Vector3.up * 3f);
             }
 
@@ -185,7 +205,7 @@ namespace GolfGame.Controllers
             {
                 HandleFlightSubStateTransitions();
 
-                // NEW: If we are in the Roll phase, update the side-tracking anchor
+                // If we are in the Roll phase, update the side-tracking anchor
                 if (_flightSubState == 3)
                 {
                     HandleRollAnchorTracking();
