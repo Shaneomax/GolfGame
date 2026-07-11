@@ -16057,8 +16057,9 @@ MonoBehaviour:
   LandingCamera: {fileID: 884888581}
   RollCamera: {fileID: 2024475513}
   AimTargetAnchor: {fileID: 1232666825}
-  PuttingCameraDistance: 4
-  PuttingCameraHeight: 1.5
+  PuttingCameraDistance: 7.5
+  PuttingCameraHeight: 2
+  PuttingCameraFollowSpeed: 3
   TouchPanSpeed: 0.05
   TouchZoomSpeed: 0.05
 --- !u!4 &1776894339

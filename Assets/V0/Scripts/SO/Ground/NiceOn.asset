@@ -18,10 +18,10 @@ MonoBehaviour:
   LinearDrag: 0
   AngularDrag: 0.05
   MaxBounces: 3
-  FirstBounceImpactScale: 1.3
+  FirstBounceImpactScale: 1
   FirstBounceForwardKill: 0.25
   ForwardToBounceConversion: 0.35
   BounceDecayRatio: 0.5
   ForwardRetentionPerBounce: 1
-  UseExtraRoll: 0
+  UseExtraRoll: 1
   ExtraRollFactor: 0.5
