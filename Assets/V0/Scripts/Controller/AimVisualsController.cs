@@ -33,6 +33,7 @@ namespace GolfGame.Controllers
         private Vector3 initialAimDirection = Vector3.forward;
         private TrajectoryPredictor trajectoryPredictor;
         private Camera mainCamera;
+        private Vector3 _localCenterOffset;
         
         public GameObject ActiveTargetMarker => activeTargetMarker;
         public Vector3 FixedAimDirection => fixedAimDirection;
@@ -42,6 +43,13 @@ namespace GolfGame.Controllers
         {
             trajectoryPredictor = GetComponent<TrajectoryPredictor>();
             mainCamera = Camera.main;
+            
+            // Find the true center of the ball relative to its pivot using its collider
+            SphereCollider sphereCollider = GetComponent<SphereCollider>();
+            if (sphereCollider != null)
+            {
+                _localCenterOffset = sphereCollider.center;
+            }
         }
 
         private void Start()
@@ -49,6 +57,12 @@ namespace GolfGame.Controllers
             if (GameStateManager.Instance != null)
             {
                 GameStateManager.Instance.OnStateEnter += OnStateEnter;
+            }
+
+            // Permanently lock the trail renderer to the true center of the ball
+            if (BallTrail != null)
+            {
+                BallTrail.transform.localPosition = _localCenterOffset;
             }
         }
 
@@ -80,8 +94,16 @@ namespace GolfGame.Controllers
             else if (newState == GameStateManager.GameState.Flight)
             {
                 if (activeTargetMarker != null) activeTargetMarker.SetActive(false);
-                if (BallTrail != null) BallTrail.emitting = true;
                 
+                bool isPutting = false;
+                BallPhysicsController physics = GetComponent<BallPhysicsController>();
+                if (physics != null && physics.CurrentGround != null)
+                {
+                    isPutting = physics.CurrentGround.IsNiceOn;
+                }
+
+                // Only emit trail if we are NOT putting
+                if (BallTrail != null) BallTrail.emitting = !isPutting;
             }
         }
 
@@ -171,6 +193,9 @@ namespace GolfGame.Controllers
             if (DragLineRenderer == null) return;
             DragLineRenderer.enabled = true;
 
+            // Shift the start position to the true center of the ball
+            Vector3 centerStartPos = transform.TransformPoint(_localCenterOffset);
+
             Color activeColor = LowForceColor; 
             if (overpowerRatio >= ExtremeForceThreshold)
                 activeColor = ExtremeForceColor;
@@ -181,10 +206,10 @@ namespace GolfGame.Controllers
 
             Vector3 visualPullBackDir = Vector3.back; 
             
-            Vector3 endPoint = startPos + (visualPullBackDir * (dragMagnitude * DragVisualMultiplier));
-            endPoint.y = startPos.y;
+            Vector3 endPoint = centerStartPos + (visualPullBackDir * (dragMagnitude * DragVisualMultiplier));
+            endPoint.y = centerStartPos.y;
             
-            DragLineRenderer.SetPosition(0, startPos);
+            DragLineRenderer.SetPosition(0, centerStartPos);
             DragLineRenderer.SetPosition(1, endPoint);
         }
 
@@ -192,6 +217,9 @@ namespace GolfGame.Controllers
         {
             if (DragLineRenderer == null) return;
             DragLineRenderer.enabled = true;
+
+            // Shift the start position to the true center of the ball
+            Vector3 centerStartPos = transform.TransformPoint(_localCenterOffset);
 
             Color activeColor = LowForceColor; 
             if (overpowerRatio >= ExtremeForceThreshold)
@@ -204,7 +232,7 @@ namespace GolfGame.Controllers
             Vector3 baseForwardDir = Vector3.forward;
             if (FlagTransform != null)
             {
-                Vector3 toFlag = FlagTransform.position - startPos;
+                Vector3 toFlag = FlagTransform.position - centerStartPos;
                 baseForwardDir = new Vector3(toFlag.x, 0f, toFlag.z).normalized;
             }
             
@@ -214,10 +242,10 @@ namespace GolfGame.Controllers
             // Use the new exposed variable
             float puttingVisualMultiplier = DragVisualMultiplier * PuttingLineLengthMultiplier; 
             
-            Vector3 endPoint = startPos + (finalAimDir * (dragMagnitude * puttingVisualMultiplier));
-            endPoint.y = startPos.y;
+            Vector3 endPoint = centerStartPos + (finalAimDir * (dragMagnitude * puttingVisualMultiplier));
+            endPoint.y = centerStartPos.y;
             
-            DragLineRenderer.SetPosition(0, startPos);
+            DragLineRenderer.SetPosition(0, centerStartPos);
             DragLineRenderer.SetPosition(1, endPoint);
         }
 
