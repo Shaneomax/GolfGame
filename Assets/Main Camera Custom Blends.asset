@@ -13,41 +13,30 @@ MonoBehaviour:
   m_Name: Main Camera Custom Blends
   m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachineBlenderSettings
   CustomBlends:
-  - From: LandingCamera
-    To: RollCamera
-    Blend:
-      Style: 1
-      Time: 2.5
-      CustomCurve:
-        serializedVersion: 2
-        m_Curve: []
-        m_PreInfinity: 0
-        m_PostInfinity: 0
-        m_RotationOrder: 0
   - From: FollowCamera
     To: ApexCamera
     Blend:
-      Style: 1
+      Style: 0
       Time: 2.5
       CustomCurve:
         serializedVersion: 2
         m_Curve: []
         m_PreInfinity: 0
         m_PostInfinity: 0
-        m_RotationOrder: 0
-  - From: RollCamera
-    To: SetUpCamera
+        m_RotationOrder: 4
+  - From: LandingCamera
+    To: RollCamera
     Blend:
-      Style: 1
-      Time: 5
+      Style: 2
+      Time: 1.5
       CustomCurve:
         serializedVersion: 2
         m_Curve: []
         m_PreInfinity: 0
         m_PostInfinity: 0
-        m_RotationOrder: 0
-  - From: 'AimCamera '
-    To: 'AimCamera '
+        m_RotationOrder: 4
+  - From: ApexCamera
+    To: LandingCamera
     Blend:
       Style: 1
       Time: 2
@@ -56,4 +45,15 @@ MonoBehaviour:
         m_Curve: []
         m_PreInfinity: 0
         m_PostInfinity: 0
-        m_RotationOrder: 0
+        m_RotationOrder: 4
+  - From: RollCamera
+    To: SetUpCamera
+    Blend:
+      Style: 1
+      Time: 2
+      CustomCurve:
+        serializedVersion: 2
+        m_Curve: []
+        m_PreInfinity: 0
+        m_PostInfinity: 0
+        m_RotationOrder: 4

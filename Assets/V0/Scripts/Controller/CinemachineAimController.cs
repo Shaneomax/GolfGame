@@ -213,24 +213,21 @@ namespace GolfGame.Controllers
             if (ApexCamera != null)
             {
                 ApexCamera.LookAt = ballTransform;
-                ApexCamera.Follow = null;
-                Vector3 midPoint = _shotStartPosition + (shotDirection * (_totalShotDistance * 0.4f));
-                ApexCamera.transform.position = midPoint + (shotRight * (_totalShotDistance * 0.3f)) + (Vector3.up * 12f);
+                ApexCamera.Follow = null; // Planted firmly on the ground looking up
             }
 
-            // 3. Landing Camera (Positioned AHEAD and to the RIGHT of the target, looking back)
+            // 3. Landing Camera 
             if (LandingCamera != null)
             {
-                LandingCamera.LookAt = ballTransform;
-                LandingCamera.Follow = null;
-                LandingCamera.transform.position = _shotTargetPosition + (shotDirection * 12f) + (shotRight * 4f) + (Vector3.up * 3f);
+                LandingCamera.LookAt = ballTransform; 
+                LandingCamera.Follow = null; // Planted firmly near the landing zone
             }
 
-            // 4. Roll Camera (Follows the stable Anchor)
+            // 4. Roll Camera 
             if (RollCamera != null)
             {
-                RollCamera.Follow = AimTargetAnchor != null ? AimTargetAnchor : ballTransform;
-                RollCamera.LookAt = ballTransform;
+                RollCamera.Follow = ballTransform; // Strictly follows the ball now
+                RollCamera.LookAt = ballTransform; // Strictly looks at the ball
             }
         }
 
@@ -430,37 +427,84 @@ namespace GolfGame.Controllers
         }
 
         private void HandleFlightSubStateTransitions()
+{
+    if (ballTransform == null || ballRigidbody == null || ballInput == null || ballInput.PhysicsController == null) return;
+
+    // Calculate how far the ball has traveled relative to the total shot distance (0.0 to 1.0)
+    float currentProgress = Vector3.Distance(
+        new Vector3(_shotStartPosition.x, 0, _shotStartPosition.z), 
+        new Vector3(ballTransform.position.x, 0, ballTransform.position.z)
+    ) / _totalShotDistance;
+
+    Vector3 shotDir = (_shotTargetPosition - _shotStartPosition).normalized;
+    shotDir.y = 0;
+    Vector3 shotRight = Vector3.Cross(Vector3.up, shotDir).normalized;
+
+    // MOVED THIS UP HERE: Check if the ball has touched the ground this frame
+    bool hasHitGround = ballInput.PhysicsController.CurrentGround != null;
+
+    // ---------------------------------------------------------
+    // TRANSITION 1: Launch -> Apex Camera
+    // Triggers as the ball nears the peak (velocity dropping, progress > 20%)
+    // ---------------------------------------------------------
+    if (_flightSubState == 0 && ballRigidbody.linearVelocity.y < 5f && currentProgress > 0.20f)
+    {
+        _flightSubState = 1; 
+        
+        if (FlightCamera != null) FlightCamera.Priority = 0;
+        
+        if (ApexCamera != null)
         {
-            if (ballTransform == null || ballRigidbody == null) return;
-
-            float currentProgress = Vector3.Distance(
-                new Vector3(_shotStartPosition.x, 0, _shotStartPosition.z), 
-                new Vector3(ballTransform.position.x, 0, ballTransform.position.z)
-            ) / _totalShotDistance;
-
-            // 1. Launch -> Apex
-            if (_flightSubState == 0 && currentProgress > 0.25f && ballRigidbody.linearVelocity.y > 0)
-            {
-                _flightSubState = 1;
-                if (FlightCamera != null) FlightCamera.Priority = 0;
-                if (ApexCamera != null) ApexCamera.Priority = 10;
-            }
-
-            // 2. Apex -> Landing View (Trigger as ball falls towards the green)
-            if (_flightSubState == 1 && (ballRigidbody.linearVelocity.y < -0.5f || currentProgress > 0.70f))
-            {
-                _flightSubState = 2;
-                if (ApexCamera != null) ApexCamera.Priority = 0;
-                if (LandingCamera != null) LandingCamera.Priority = 10;
-            }
-
-            // 3. Landing View -> Roll Camera (Trigger when ball hits the ground)
-            if (_flightSubState == 2 && ballRigidbody.linearVelocity.y > -0.1f)
-            {
-                _flightSubState = 3;
-                if (LandingCamera != null) LandingCamera.Priority = 0;
-                if (RollCamera != null) RollCamera.Priority = 10;
-            }
+            ApexCamera.Priority = 10;
+            
+            // "Under view" side camera: positioned to the side and slightly below the peak
+            Vector3 apexCamPos = ballTransform.position + (shotDir * 8f) + (shotRight * 12f);
+            apexCamPos.y = Mathf.Max(ballTransform.position.y - 3f, 2f); 
+            
+            ApexCamera.transform.position = apexCamPos;
+            ApexCamera.LookAt = ballTransform;
+            ApexCamera.Follow = null; // Planted firmly
         }
+    }
+    // ---------------------------------------------------------
+    // TRANSITION 2: Apex -> Landing Camera
+    // Triggers exactly on the first bounce (ground contact)
+    // ---------------------------------------------------------
+    else if (_flightSubState == 1 && hasHitGround)
+    {
+        _flightSubState = 2; // Transition to Landing
+        
+        if (ApexCamera != null) ApexCamera.Priority = 0;
+        
+        if (LandingCamera != null)
+        {
+            LandingCamera.Priority = 10;
+            
+            // Tell Cinemachine to follow and look at the ball as it moves
+            LandingCamera.LookAt = ballTransform; 
+            LandingCamera.Follow = ballTransform; 
+        }
+    }
+    // ---------------------------------------------------------
+    // TRANSITION 3: Landing -> Sideview (Roll) Camera
+    // Triggers when the ball's speed drops, indicating the big bounces 
+    // are over and it's settling into a roll
+    // ---------------------------------------------------------
+    else if (_flightSubState == 2 && ballRigidbody.linearVelocity.magnitude < 5f)
+    {
+        _flightSubState = 3;
+        
+        if (LandingCamera != null) LandingCamera.Priority = 0;
+        
+        if (RollCamera != null)
+        {
+            RollCamera.Priority = 10;
+            
+            // Re-enable Follow so the camera tightly tracks the final roll
+            RollCamera.Follow = ballTransform;
+            RollCamera.LookAt = ballTransform;
+        }
+    }
+}
     }
 }

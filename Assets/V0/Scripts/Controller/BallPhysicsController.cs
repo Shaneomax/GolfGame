@@ -20,6 +20,7 @@ namespace GolfGame.Controllers
         private int collisionCount = 0;
         private bool isGrounded = false;
         private int bounceCount = 0;
+        public int BounceCount => bounceCount; // Add this line
         private float lastBounceUpVelocity = 0f;
         private float lastRollingSpeed = 0f;
         private float flightStartTime = 0f;

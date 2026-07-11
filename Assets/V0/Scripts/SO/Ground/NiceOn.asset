@@ -20,8 +20,8 @@ MonoBehaviour:
   MaxBounces: 3
   FirstBounceImpactScale: 1
   FirstBounceForwardKill: 0.25
-  ForwardToBounceConversion: 0.35
-  BounceDecayRatio: 0.5
+  ForwardToBounceConversion: 0.3
+  BounceDecayRatio: 0.25
   ForwardRetentionPerBounce: 1
   UseExtraRoll: 1
   ExtraRollFactor: 0.5

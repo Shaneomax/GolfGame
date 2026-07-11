@@ -57,8 +57,17 @@ namespace GolfGame.Controllers
 
         private void OnStateEnter(GameStateManager.GameState newState)
         {
-            if (newState == GameStateManager.GameState.Aiming) ActivateArrow();
-            else DeactivateArrow();
+            bool isPutting = false;
+            var physics = FindObjectOfType<BallPhysicsController>();
+            if (physics != null && physics.CurrentGround != null)
+            {
+                isPutting = physics.CurrentGround.IsNiceOn;
+            }
+
+            if (newState == GameStateManager.GameState.Aiming && !isPutting) 
+                ActivateArrow();
+            else 
+                DeactivateArrow();
         }
 
         private void ActivateArrow()

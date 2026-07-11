@@ -7818,7 +7818,7 @@ GameObject:
   m_Component:
   - component: {fileID: 884888582}
   - component: {fileID: 884888581}
-  - component: {fileID: 884888580}
+  - component: {fileID: 884888583}
   - component: {fileID: 884888579}
   m_Layer: 0
   m_Name: LandingCamera
@@ -7850,38 +7850,7 @@ MonoBehaviour:
       Offset: {x: 0, y: 0}
   CenterOnActivate: 1
   TargetOffset: {x: 0, y: 0, z: 0}
-  Damping: {x: 0.5, y: 0.5}
-  Lookahead:
-    Enabled: 0
-    Time: 0
-    Smoothing: 0
-    IgnoreY: 0
---- !u!114 &884888580
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 884888578}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 886251e9a18ece04ea8e61686c173e1b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachinePositionComposer
-  CameraDistance: 10
-  DeadZoneDepth: 0
-  Composition:
-    ScreenPosition: {x: 0, y: 0}
-    DeadZone:
-      Enabled: 0
-      Size: {x: 0.2, y: 0.2}
-    HardLimits:
-      Enabled: 0
-      Size: {x: 0.8, y: 0.8}
-      Offset: {x: 0, y: 0}
-  CenterOnActivate: 1
-  TargetOffset: {x: -2, y: 2.5, z: 8}
-  Damping: {x: 1, y: 1, z: 1}
+  Damping: {x: 1, y: 1}
   Lookahead:
     Enabled: 0
     Time: 0
@@ -7945,6 +7914,37 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 14.04, y: 0, z: 0}
+--- !u!114 &884888583
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 884888578}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 886251e9a18ece04ea8e61686c173e1b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachinePositionComposer
+  CameraDistance: 10
+  DeadZoneDepth: 0
+  Composition:
+    ScreenPosition: {x: 0, y: 0}
+    DeadZone:
+      Enabled: 0
+      Size: {x: 0.2, y: 0.2}
+    HardLimits:
+      Enabled: 0
+      Size: {x: 0.8, y: 0.8}
+      Offset: {x: 0, y: 0}
+  CenterOnActivate: 1
+  TargetOffset: {x: 20, y: 3.5, z: 0}
+  Damping: {x: 1, y: 1, z: 1}
+  Lookahead:
+    Enabled: 0
+    Time: 0
+    Smoothing: 0
+    IgnoreY: 0
 --- !u!1 &894026586
 GameObject:
   m_ObjectHideFlags: 0
@@ -11029,6 +11029,42 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 284888292915245395, guid: 123ad9ba88384de41b550cd8dcd7f946, type: 3}
+      propertyPath: m_Positions.Array.size
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 284888292915245395, guid: 123ad9ba88384de41b550cd8dcd7f946, type: 3}
+      propertyPath: m_Positions.Array.data[2].z
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 284888292915245395, guid: 123ad9ba88384de41b550cd8dcd7f946, type: 3}
+      propertyPath: m_Positions.Array.data[3].z
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 284888292915245395, guid: 123ad9ba88384de41b550cd8dcd7f946, type: 3}
+      propertyPath: m_Positions.Array.data[4].z
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 284888292915245395, guid: 123ad9ba88384de41b550cd8dcd7f946, type: 3}
+      propertyPath: m_Positions.Array.data[5].z
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 284888292915245395, guid: 123ad9ba88384de41b550cd8dcd7f946, type: 3}
+      propertyPath: m_Positions.Array.data[6].z
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 284888292915245395, guid: 123ad9ba88384de41b550cd8dcd7f946, type: 3}
+      propertyPath: m_Positions.Array.data[7].z
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 284888292915245395, guid: 123ad9ba88384de41b550cd8dcd7f946, type: 3}
+      propertyPath: m_Positions.Array.data[8].z
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 284888292915245395, guid: 123ad9ba88384de41b550cd8dcd7f946, type: 3}
+      propertyPath: m_Positions.Array.data[9].z
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 1497659883974459721, guid: 123ad9ba88384de41b550cd8dcd7f946, type: 3}
       propertyPath: m_Name
       value: GolfBall
@@ -11076,10 +11112,6 @@ PrefabInstance:
     - target: {fileID: 2417385486978903279, guid: 123ad9ba88384de41b550cd8dcd7f946, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4298099233657469919, guid: 123ad9ba88384de41b550cd8dcd7f946, type: 3}
-      propertyPath: RollPreservationFactor
-      value: 0.989
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -16060,6 +16092,8 @@ MonoBehaviour:
   PuttingCameraDistance: 7.5
   PuttingCameraHeight: 2
   PuttingCameraFollowSpeed: 3
+  AimCameraDistance: 7.5
+  AimCameraHeight: 4
   TouchPanSpeed: 0.05
   TouchZoomSpeed: 0.05
 --- !u!4 &1776894339
@@ -18330,7 +18364,7 @@ MonoBehaviour:
       Size: {x: 0.8, y: 0.8}
       Offset: {x: 0, y: 0}
   CenterOnActivate: 1
-  TargetOffset: {x: 0, y: 2.5, z: -2}
+  TargetOffset: {x: 0, y: 1.5, z: -4}
   Damping: {x: 1, y: 1, z: 1}
   Lookahead:
     Enabled: 0
