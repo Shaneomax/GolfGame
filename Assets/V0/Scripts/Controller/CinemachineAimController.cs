@@ -24,6 +24,12 @@ namespace GolfGame.Controllers
         [Tooltip("Anchor used to orient the camera's alignment behind the ball.")]
         public Transform AimTargetAnchor;
 
+        [Header("Putting / NiceOn")]
+        [Tooltip("How far behind the ball the camera sits when putting.")]
+        public float PuttingCameraDistance = 4f;
+        [Tooltip("How high above the ball the camera sits when putting.")]
+        public float PuttingCameraHeight = 1.5f;
+
         [Header("Setup Camera Controls (Mobile Touch Only)")]
         public float TouchPanSpeed = 0.05f;
         public float TouchZoomSpeed = 0.05f;
@@ -42,6 +48,8 @@ namespace GolfGame.Controllers
         private Vector3 _shotTargetPosition;
         private float _totalShotDistance;
         private int _flightSubState = 0; // 0=Launch, 1=Apex, 2=Landing, 3=Rolling
+
+        private CinemachineCamera _puttingCamera;
 
         private void Start()
         {
@@ -91,9 +99,38 @@ namespace GolfGame.Controllers
             {
                 if (AimCamera != null && ballTransform != null)
                 {
-                    AimCamera.Priority = 10;
-                    AimCamera.Follow = ballTransform;
-                    AimCamera.LookAt = AimTargetAnchor != null ? AimTargetAnchor : ballTransform;
+                    bool isPutting = ballInput != null && ballInput.PhysicsController != null && 
+                                     ballInput.PhysicsController.CurrentGround != null && 
+                                     ballInput.PhysicsController.CurrentGround.IsNiceOn;
+
+                    if (isPutting && ballInput.AimVisuals != null && ballInput.AimVisuals.FlagTransform != null)
+                    {
+                        AimCamera.Priority = 0; // Disable normal AimCamera
+
+                        if (_puttingCamera == null)
+                        {
+                            GameObject camObj = new GameObject("DynamicPuttingCamera");
+                            _puttingCamera = camObj.AddComponent<CinemachineCamera>();
+                        }
+                        
+                        _puttingCamera.Priority = 20;
+
+                        // Ensure anchor still aligns with flag for any line rendering logic
+                        if (AimTargetAnchor != null)
+                        {
+                            AimTargetAnchor.position = ballTransform.position;
+                            Vector3 toFlag = ballInput.AimVisuals.FlagTransform.position - ballTransform.position;
+                            toFlag.y = 0f;
+                            if (toFlag.sqrMagnitude > 0.001f) AimTargetAnchor.rotation = Quaternion.LookRotation(toFlag.normalized);
+                        }
+                    }
+                    else
+                    {
+                        if (_puttingCamera != null) _puttingCamera.Priority = 0;
+                        AimCamera.Priority = 10;
+                        AimCamera.Follow = ballTransform;
+                        AimCamera.LookAt = AimTargetAnchor != null ? AimTargetAnchor : ballTransform;
+                    }
                 }
             }
             else if (newState == GameStateManager.GameState.Flight)
@@ -303,6 +340,34 @@ namespace GolfGame.Controllers
                 }
                 
                 AimTargetAnchor.rotation = Quaternion.LookRotation(aimDir);
+                UpdateAimCameraLookAt();
+            }
+        }
+
+        private void UpdateAimCameraLookAt()
+        {
+            if (AimCamera == null || ballInput == null) return;
+
+            bool isPutting = ballInput.PhysicsController != null &&
+                             ballInput.PhysicsController.CurrentGround != null &&
+                             ballInput.PhysicsController.CurrentGround.IsNiceOn;
+
+            if (isPutting && ballInput.AimVisuals != null && ballInput.AimVisuals.FlagTransform != null && ballTransform != null)
+            {
+                if (_puttingCamera != null)
+                {
+                    Transform flag = ballInput.AimVisuals.FlagTransform;
+                    Vector3 toFlag = flag.position - ballTransform.position;
+                    toFlag.y = 0f;
+                    Vector3 flagDir = toFlag.sqrMagnitude > 0.001f ? toFlag.normalized : Vector3.forward;
+
+                    _puttingCamera.transform.position = ballTransform.position - (flagDir * PuttingCameraDistance) + (Vector3.up * PuttingCameraHeight);
+                    _puttingCamera.transform.LookAt(flag);
+                }
+            }
+            else
+            {
+                AimCamera.LookAt = AimTargetAnchor != null ? AimTargetAnchor : ballTransform;
             }
         }
 

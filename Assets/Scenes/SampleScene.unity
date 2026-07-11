@@ -10348,7 +10348,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1177379370
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -16057,6 +16057,8 @@ MonoBehaviour:
   LandingCamera: {fileID: 884888581}
   RollCamera: {fileID: 2024475513}
   AimTargetAnchor: {fileID: 1232666825}
+  PuttingCameraDistance: 4
+  PuttingCameraHeight: 1.5
   TouchPanSpeed: 0.05
   TouchZoomSpeed: 0.05
 --- !u!4 &1776894339
@@ -19094,10 +19096,6 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: 1586343159115547630, guid: bd4e6f0bc98914d439e9d9c1deae8654, type: 3}
-      propertyPath: m_IsTrigger
-      value: 1
-      objectReference: {fileID: 0}
     - target: {fileID: 2418715018993201027, guid: bd4e6f0bc98914d439e9d9c1deae8654, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0.13
