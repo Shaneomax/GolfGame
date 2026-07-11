@@ -29,6 +29,8 @@ namespace GolfGame.Controllers
         public float PuttingCameraDistance = 4f;
         [Tooltip("How high above the ball the camera sits when putting.")]
         public float PuttingCameraHeight = 1.5f;
+        [Tooltip("How smoothly the putting camera follows the rolling ball. Lower = smoother/slower, Higher = snappier.")]
+        public float PuttingCameraFollowSpeed = 3f;
 
         [Header("Setup Camera Controls (Mobile Touch Only)")]
         public float TouchPanSpeed = 0.05f;
@@ -242,10 +244,21 @@ namespace GolfGame.Controllers
             {
                 HandleFlightSubStateTransitions();
 
-                // If we are in the Roll phase, update the side-tracking anchor
                 if (_flightSubState == 3)
                 {
-                    HandleRollAnchorTracking();
+                    // Check if this is a NiceOn putt - if so, use the smooth putting camera instead of roll anchor
+                    bool isPuttingRoll = ballInput != null && ballInput.PhysicsController != null &&
+                                        ballInput.PhysicsController.CurrentGround != null &&
+                                        ballInput.PhysicsController.CurrentGround.IsNiceOn;
+
+                    if (isPuttingRoll)
+                    {
+                        UpdateAimCameraLookAt(); // Smoothly follow rolling ball with putting camera
+                    }
+                    else
+                    {
+                        HandleRollAnchorTracking();
+                    }
                 }
             }
         }
@@ -361,8 +374,15 @@ namespace GolfGame.Controllers
                     toFlag.y = 0f;
                     Vector3 flagDir = toFlag.sqrMagnitude > 0.001f ? toFlag.normalized : Vector3.forward;
 
-                    _puttingCamera.transform.position = ballTransform.position - (flagDir * PuttingCameraDistance) + (Vector3.up * PuttingCameraHeight);
-                    _puttingCamera.transform.LookAt(flag);
+                    _puttingCamera.transform.position = Vector3.Lerp(
+                        _puttingCamera.transform.position,
+                        ballTransform.position - (flagDir * PuttingCameraDistance) + (Vector3.up * PuttingCameraHeight),
+                        Time.deltaTime * PuttingCameraFollowSpeed
+                    );
+                    
+                    // Look slightly ahead of the ball towards the flag so the ball stays well-framed
+                    Vector3 lookTarget = Vector3.Lerp(ballTransform.position, flag.position, 0.15f);
+                    _puttingCamera.transform.LookAt(lookTarget);
                 }
             }
             else

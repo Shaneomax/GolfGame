@@ -179,6 +179,7 @@ GameObject:
   - component: {fileID: 3428993087366212951}
   - component: {fileID: 8082322351056538373}
   - component: {fileID: -2827105273082855494}
+  - component: {fileID: -1088292152678779654}
   m_Layer: 0
   m_Name: GolfBall
   m_TagString: Player
@@ -593,6 +594,7 @@ MonoBehaviour:
   DragLineRenderer: {fileID: 3116186802648991874}
   BallTrail: {fileID: 3428993087366212951}
   DragVisualMultiplier: 1.5
+  PuttingLineLengthMultiplier: 12
   LowForceColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   NormalForceColor: {r: 0, g: 1, b: 0, a: 1}
   ExtremeForceColor: {r: 1, g: 0, b: 0, a: 1}
@@ -611,3 +613,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GolfGame.Controllers.BallPhysicsController
   RollPreservationFactor: 0.999
   DefaultGround: {fileID: 11400000, guid: 02b0dd1f2fc066140a151eb01b0b1e97, type: 2}
+--- !u!114 &-1088292152678779654
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1497659883974459721}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 91d74ac85aa13d942b5237513b2076e9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GolfGame.Controllers.BallTrailCenterFollower
+  BallMeshRenderer: {fileID: 0}
