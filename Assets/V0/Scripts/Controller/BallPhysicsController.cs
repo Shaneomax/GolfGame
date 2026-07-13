@@ -98,6 +98,14 @@ namespace GolfGame.Controllers
             rb.linearVelocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
             rb.Sleep(); 
+            
+            StartCoroutine(DelayStateChange());
+        }
+
+        private System.Collections.IEnumerator DelayStateChange()
+        {
+            yield return new WaitForSeconds(2f);
+            
             if (GameStateManager.Instance != null)
             {
                 if (currentGround != null && currentGround.IsNiceOn)

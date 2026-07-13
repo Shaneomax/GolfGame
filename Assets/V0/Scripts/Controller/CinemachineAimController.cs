@@ -450,10 +450,10 @@ namespace GolfGame.Controllers
             bool hasHitGround = ballInput.PhysicsController.CurrentGround != null;
 
             // ---------------------------------------------------------
-            // TRANSITION 1: Launch -> Apex Camera
-            // Triggers as the ball nears the peak (velocity dropping, progress > 20%)
+            // TRANSITION 1: Launch -> Bounce Anticipation Camera
+            // Triggers when ball is far away and barely visible
             // ---------------------------------------------------------
-            if (_flightSubState == 0 && ballRigidbody.linearVelocity.y < 5f && currentProgress > 0.20f)
+            if (_flightSubState == 0 && currentProgress > 0.55f)
             {
                 _flightSubState = 1; 
                 
@@ -463,11 +463,11 @@ namespace GolfGame.Controllers
                 {
                     ApexCamera.Priority = 10;
                     
-                    // "Under view" side camera: positioned to the side and slightly below the peak
-                    Vector3 apexCamPos = ballTransform.position + (shotDir * 8f) + (shotRight * 12f);
-                    apexCamPos.y = Mathf.Max(ballTransform.position.y - 3f, 2f); 
+                    // Positioned slightly forward and sideways from the anticipated first bounce (target position)
+                    Vector3 bounceCamPos = _shotTargetPosition + (shotDir * 5f) + (shotRight * 8f);
+                    bounceCamPos.y = Mathf.Max(_shotTargetPosition.y + 4f, 2f); 
                     
-                    ApexCamera.transform.position = apexCamPos;
+                    ApexCamera.transform.position = bounceCamPos;
                     ApexCamera.LookAt = ballTransform;
                     ApexCamera.Follow = null; // Planted firmly
                 }

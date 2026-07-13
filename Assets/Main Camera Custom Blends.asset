@@ -17,18 +17,7 @@ MonoBehaviour:
     To: ApexCamera
     Blend:
       Style: 0
-      Time: 2.5
-      CustomCurve:
-        serializedVersion: 2
-        m_Curve: []
-        m_PreInfinity: 0
-        m_PostInfinity: 0
-        m_RotationOrder: 4
-  - From: LandingCamera
-    To: RollCamera
-    Blend:
-      Style: 2
-      Time: 1.5
+      Time: 2
       CustomCurve:
         serializedVersion: 2
         m_Curve: []
@@ -37,6 +26,17 @@ MonoBehaviour:
         m_RotationOrder: 4
   - From: ApexCamera
     To: LandingCamera
+    Blend:
+      Style: 0
+      Time: 1
+      CustomCurve:
+        serializedVersion: 2
+        m_Curve: []
+        m_PreInfinity: 0
+        m_PostInfinity: 0
+        m_RotationOrder: 4
+  - From: LandingCamera
+    To: RollCamera
     Blend:
       Style: 1
       Time: 2
