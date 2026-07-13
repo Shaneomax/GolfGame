@@ -38,11 +38,9 @@ namespace GolfGame.Controllers
         [Tooltip("How high above the ball the aim camera sits for normal shots.")]
         public float AimCameraHeight = 2f;
 
-        [Header("Landing Camera (First Bounce) Settings")]
-        [Tooltip("How close the camera gets to the ball on the first bounce. Lower = Closer.")]
-        public float LandingCameraDistance = 3.5f;
-        [Tooltip("How high up the camera sits to look down on the first bounce. Higher = Higher Y axis.")]
-        public float LandingCameraHeight = 2.5f;
+        [Header("Landing Camera (Planted) Settings")]
+        [Tooltip("Offset relative to the landing spot. X=Sideways, Y=Up, Z=Forward")]
+        public Vector3 LandingCameraPlantedOffset = new Vector3(20f, 5f, 20f);
 
         [Header("Setup Camera Controls (Mobile Touch Only)")]
         public float TouchPanSpeed = 0.05f;
@@ -427,20 +425,51 @@ namespace GolfGame.Controllers
 
                 Transform lookAt = ballInput.ActiveTargetMarker != null
                     ? ballInput.ActiveTargetMarker.transform
-                    : (AimTargetAnchor != null ? AimTargetAnchor : ballTransform);
+                : (AimTargetAnchor != null ? AimTargetAnchor : ballTransform);
                 AimCamera.transform.LookAt(lookAt);
             }
         }
 
+        private bool _hasCalculatedRealTarget = false;
+
         private void HandleFlightSubStateTransitions()
         {
-            if (ballTransform == null || ballRigidbody == null || ballInput == null || ballInput.PhysicsController == null) return;
+            if (ballRigidbody == null || ballInput == null) return;
 
-            // Calculate how far the ball has traveled relative to the total shot distance (0.0 to 1.0)
-            float currentProgress = Vector3.Distance(
-                new Vector3(_shotStartPosition.x, 0, _shotStartPosition.z), 
-                new Vector3(ballTransform.position.x, 0, ballTransform.position.z)
-            ) / _totalShotDistance;
+            // 0. Calculate REAL landing position once the ball actually has velocity!
+            // The Target Marker doesn't account for shot power. We must predict it.
+            if (_flightSubState == 0 && !_hasCalculatedRealTarget && ballRigidbody.linearVelocity.magnitude > 1f)
+            {
+                _hasCalculatedRealTarget = true;
+                Vector3 v0 = ballRigidbody.linearVelocity;
+                
+                // Simple projectile physics to predict where it will land
+                float timeToLand = (2f * v0.y) / Mathf.Abs(Physics.gravity.y);
+                if (timeToLand > 0)
+                {
+                    Vector3 predictedXZ = _shotStartPosition + new Vector3(v0.x, 0f, v0.z) * timeToLand;
+                    
+                    // Raycast down to find the actual ground height at that spot
+                    if (Physics.Raycast(predictedXZ + Vector3.up * 50f, Vector3.down, out RaycastHit hit, 100f))
+                    {
+                        _shotTargetPosition = hit.point;
+                    }
+                    else
+                    {
+                        predictedXZ.y = _shotStartPosition.y;
+                        _shotTargetPosition = predictedXZ;
+                    }
+                }
+            }
+
+            float currentProgress = 0f;
+            if (_totalShotDistance > 0.001f)
+            {
+                float traveled = Vector3.Distance(
+                    new Vector3(_shotStartPosition.x, 0, _shotStartPosition.z),
+                    new Vector3(ballTransform.position.x, 0, ballTransform.position.z));
+                currentProgress = Mathf.Clamp01(traveled / _totalShotDistance);
+            }
 
             Vector3 shotDir = (_shotTargetPosition - _shotStartPosition).normalized;
             shotDir.y = 0;
@@ -450,8 +479,8 @@ namespace GolfGame.Controllers
             bool hasHitGround = ballInput.PhysicsController.CurrentGround != null;
 
             // ---------------------------------------------------------
-            // TRANSITION 1: Launch -> Bounce Anticipation Camera
-            // Triggers when ball is far away and barely visible
+            // TRANSITION 1: Launch -> Landing Camera
+            // Triggers before the ball drops (at 55% progress) to capture the incoming ball
             // ---------------------------------------------------------
             if (_flightSubState == 0 && currentProgress > 0.55f)
             {
@@ -459,52 +488,34 @@ namespace GolfGame.Controllers
                 
                 if (FlightCamera != null) FlightCamera.Priority = 0;
                 
-                if (ApexCamera != null)
-                {
-                    ApexCamera.Priority = 10;
-                    
-                    // Positioned slightly forward and sideways from the anticipated first bounce (target position)
-                    Vector3 bounceCamPos = _shotTargetPosition + (shotDir * 5f) + (shotRight * 8f);
-                    bounceCamPos.y = Mathf.Max(_shotTargetPosition.y + 4f, 2f); 
-                    
-                    ApexCamera.transform.position = bounceCamPos;
-                    ApexCamera.LookAt = ballTransform;
-                    ApexCamera.Follow = null; // Planted firmly
-                }
-            }
-            // ---------------------------------------------------------
-            // TRANSITION 2: Apex -> Landing Camera
-            // Triggers exactly on the first bounce (ground contact)
-            // ---------------------------------------------------------
-            else if (_flightSubState == 1 && hasHitGround)
-            {
-                _flightSubState = 2; // Transition to Landing
-                
-                if (ApexCamera != null) ApexCamera.Priority = 0;
-                
+                // We use LandingCamera here so it's in position BEFORE the ball drops
                 if (LandingCamera != null)
                 {
                     LandingCamera.Priority = 10;
                     
-                    // Tell Cinemachine to follow and look at the ball as it moves
+                    // The camera is planted and WILL NOT follow the ball
+                    LandingCamera.Follow = null; 
                     LandingCamera.LookAt = ballTransform; 
-                    LandingCamera.Follow = ballTransform; 
 
-                    // NEW: Automatically apply your Inspector tweaks to the camera tracking components
-                    var cmFollow = LandingCamera.GetComponent<CinemachineFollow>();
-                    if (cmFollow != null)
-                    {
-                        // Invert the distance value so it sits perfectly behind the ball's movement path
-                        cmFollow.FollowOffset = new Vector3(0f, LandingCameraHeight, -LandingCameraDistance);
-                    }
-
-                    var cm3rdPerson = LandingCamera.GetComponent<Cinemachine3rdPersonFollow>();
-                    if (cm3rdPerson != null)
-                    {
-                        cm3rdPerson.CameraDistance = LandingCameraDistance;
-                        // You can manually adjust the vertical pivot or tracking offset in the inspector if needed
-                    }
+                    // Planted relative to the expected landing spot (_shotTargetPosition)
+                    Vector3 plantedPos = _shotTargetPosition 
+                                         + (shotRight * LandingCameraPlantedOffset.x)
+                                         + (Vector3.up * LandingCameraPlantedOffset.y)
+                                         + (shotDir * LandingCameraPlantedOffset.z);
+                                         
+                    LandingCamera.transform.position = plantedPos;
                 }
+            }
+            // ---------------------------------------------------------
+            // TRANSITION 2: First Bounce
+            // Triggers exactly on the first bounce (ground contact)
+            // ---------------------------------------------------------
+            else if (_flightSubState == 1 && hasHitGround)
+            {
+                _flightSubState = 2; // Transition to Bounce
+                
+                // LandingCamera is already active and planted from Transition 1. 
+                // We just let it continue to watch the ball bounce and roll away!
             }
             // ---------------------------------------------------------
             // TRANSITION 3: Landing -> Sideview (Roll) Camera
