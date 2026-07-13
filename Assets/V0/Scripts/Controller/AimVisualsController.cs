@@ -46,6 +46,7 @@ namespace GolfGame.Controllers
         private TrajectoryPredictor trajectoryPredictor;
         private Camera mainCamera;
         private Vector3 _localCenterOffset;
+        private float _ballRadius;
         
         public GameObject ActiveTargetMarker => activeTargetMarker;
         public Vector3 FixedAimDirection => fixedAimDirection;
@@ -60,9 +61,11 @@ namespace GolfGame.Controllers
             if (sphereCollider != null)
             {
                 _localCenterOffset = sphereCollider.center;
+                // Added a 1.15x padding multiplier to clear the line's thickness
+                _ballRadius = sphereCollider.radius * Mathf.Max(transform.localScale.x, transform.localScale.y, transform.localScale.z) * 1.15f;
             }
 
-            // Cache default trail values for resetting
+            // RESTORED: Cache default trail values for resetting!
             if (BallTrail != null)
             {
                 _defaultTrailTime = BallTrail.time;
@@ -95,7 +98,6 @@ namespace GolfGame.Controllers
 
         private void OnStateEnter(GameStateManager.GameState newState)
         {
-            // NEW: Always stop the shrink coroutine when changing states so it doesn't fight the reset
             if (_shrinkCoroutine != null)
             {
                 StopCoroutine(_shrinkCoroutine);
@@ -106,27 +108,26 @@ namespace GolfGame.Controllers
             {
                 if (BallTrail != null) 
                 {
-                    // Reset to default sizes before the next shot
                     BallTrail.time = _defaultTrailTime;
                     BallTrail.widthMultiplier = _defaultTrailWidth;
-                    
                     BallTrail.emitting = false;
-                    BallTrail.Clear(); 
+                    BallTrail.Clear(); // Completely clear old trail segments
                 }
+                HideDragLine(); // FORCE HIDE DRAG LINE HERE
             }
             else if (newState == GameStateManager.GameState.Aiming)
             {
-                // NEW: Also reset the trail here! 
-                // If the ball stops on the green, it skips "Setup" and goes straight here.
+                if (trajectoryPredictor != null) trajectoryPredictor.HideTrajectory();
+                if (activeTargetMarker != null) activeTargetMarker.SetActive(false);
+                
                 if (BallTrail != null) 
                 {
                     BallTrail.time = _defaultTrailTime;
                     BallTrail.widthMultiplier = _defaultTrailWidth;
                     BallTrail.emitting = false;
+                    BallTrail.Clear(); // Clear trail segments here too
                 }
-
-                if (trajectoryPredictor != null) trajectoryPredictor.HideTrajectory();
-                if (activeTargetMarker != null) activeTargetMarker.SetActive(false);
+                HideDragLine(); // FORCE HIDE DRAG LINE HERE
             }
             else if (newState == GameStateManager.GameState.Flight)
             {
@@ -139,8 +140,11 @@ namespace GolfGame.Controllers
                     isPutting = physics.CurrentGround.IsNiceOn;
                 }
 
-                // Only emit trail if we are NOT putting
-                if (BallTrail != null) BallTrail.emitting = !isPutting;
+                if (BallTrail != null) 
+                {
+                    BallTrail.Clear(); // Clear right before flight begins
+                    BallTrail.emitting = !isPutting;
+                }
             }
         }
 
@@ -240,7 +244,9 @@ namespace GolfGame.Controllers
         {
             if (trajectoryPredictor != null && activeTargetMarker != null)
             {
-                trajectoryPredictor.ShowTrajectory(transform.position, launchVelocity, activeTargetMarker.transform.position.y);
+                // NEW: Push the starting point out by the ball's radius
+                Vector3 edgeStartPos = transform.position + (launchVelocity.normalized * _ballRadius);
+                trajectoryPredictor.ShowTrajectory(edgeStartPos, launchVelocity, activeTargetMarker.transform.position.y);
             }
         }
 
@@ -251,42 +257,60 @@ namespace GolfGame.Controllers
 
         public void UpdateDragLine(float dragMagnitude, float overpowerRatio, Vector3 startPos)
         {
+            // NEW SAFETY: If the player barely moved the mouse/finger, hide the line instantly
+            if (dragMagnitude < 0.05f)
+            {
+                HideDragLine();
+                return;
+            }
+
             if (DragLineRenderer == null) return;
             DragLineRenderer.enabled = true;
 
-            // Shift the start position to the true center of the ball
             Vector3 centerStartPos = transform.TransformPoint(_localCenterOffset);
 
             Color activeColor = LowForceColor; 
-            if (overpowerRatio >= ExtremeForceThreshold)
-                activeColor = ExtremeForceColor;
-            else if (overpowerRatio > 0)
-                activeColor = NormalForceColor;
+            if (overpowerRatio >= ExtremeForceThreshold) activeColor = ExtremeForceColor;
+            else if (overpowerRatio > 0) activeColor = NormalForceColor;
                 
             UpdateDragLineColor(activeColor);
 
-            Vector3 visualPullBackDir = Vector3.back; 
+            // FIXED: Pull straight back relative to where we are aiming, not absolute world Z
+            Vector3 visualPullBackDir = -fixedAimDirection; 
+            
+            // Fallback just in case aim direction is completely zeroed out
+            if (visualPullBackDir.sqrMagnitude < 0.001f) 
+            {
+                visualPullBackDir = Vector3.back;
+            }
+            
+            // Push the starting point out by the radius so it doesn't sit inside the mesh
+            Vector3 edgeStartPos = centerStartPos + (visualPullBackDir * _ballRadius);
             
             Vector3 endPoint = centerStartPos + (visualPullBackDir * (dragMagnitude * DragVisualMultiplier));
             endPoint.y = centerStartPos.y;
             
-            DragLineRenderer.SetPosition(0, centerStartPos);
+            DragLineRenderer.SetPosition(0, edgeStartPos); 
             DragLineRenderer.SetPosition(1, endPoint);
         }
 
         public void UpdatePuttingLine(float dragMagnitude, float overpowerRatio, Vector3 startPos, float dragAngle)
         {
+            // NEW SAFETY: Hide line if drag magnitude is effectively zero
+            if (dragMagnitude < 0.05f)
+            {
+                HideDragLine();
+                return;
+            }
+
             if (DragLineRenderer == null) return;
             DragLineRenderer.enabled = true;
 
-            // Shift the start position to the true center of the ball
             Vector3 centerStartPos = transform.TransformPoint(_localCenterOffset);
 
             Color activeColor = LowForceColor; 
-            if (overpowerRatio >= ExtremeForceThreshold)
-                activeColor = ExtremeForceColor;
-            else if (overpowerRatio > 0)
-                activeColor = NormalForceColor;
+            if (overpowerRatio >= ExtremeForceThreshold) activeColor = ExtremeForceColor;
+            else if (overpowerRatio > 0) activeColor = NormalForceColor;
                 
             UpdateDragLineColor(activeColor);
 
@@ -297,16 +321,17 @@ namespace GolfGame.Controllers
                 baseForwardDir = new Vector3(toFlag.x, 0f, toFlag.z).normalized;
             }
             
-            // Rotate the base direction based on the player's drag (slingshot aim)
             Vector3 finalAimDir = Quaternion.Euler(0f, dragAngle, 0f) * baseForwardDir;
             
-            // Use the new exposed variable
+            // NEW: Push the starting point out by the radius
+            Vector3 edgeStartPos = centerStartPos + (finalAimDir * _ballRadius);
+            
             float puttingVisualMultiplier = DragVisualMultiplier * PuttingLineLengthMultiplier; 
             
             Vector3 endPoint = centerStartPos + (finalAimDir * (dragMagnitude * puttingVisualMultiplier));
             endPoint.y = centerStartPos.y;
             
-            DragLineRenderer.SetPosition(0, centerStartPos);
+            DragLineRenderer.SetPosition(0, edgeStartPos); // Updated this line
             DragLineRenderer.SetPosition(1, endPoint);
         }
 
