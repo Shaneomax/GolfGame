@@ -24,6 +24,17 @@ namespace GolfGame.Controllers
         public Color NormalForceColor = Color.green;
         public Color ExtremeForceColor = Color.red;
 
+        [Header("Trail Shrink Settings")]
+        [Tooltip("How fast the trail shrinks when the ball hits the ground.")]
+        public float TrailShrinkSpeed = 2f;
+        [Tooltip("The final length (time) of the trail after it shrinks.")]
+        public float TargetTrailTime = 0f;
+        [Tooltip("The final width of the trail after it shrinks.")]
+        public float TargetTrailWidth = 0f;
+
+        private float _defaultTrailTime;
+        private float _defaultTrailWidth;
+
         [Tooltip("At what overpower ratio (0.0 to 1.0) should the line turn Red?")]
         [Range(0.1f, 1.0f)]
         public float ExtremeForceThreshold = 0.5f;
@@ -44,11 +55,17 @@ namespace GolfGame.Controllers
             trajectoryPredictor = GetComponent<TrajectoryPredictor>();
             mainCamera = Camera.main;
             
-            // Find the true center of the ball relative to its pivot using its collider
             SphereCollider sphereCollider = GetComponent<SphereCollider>();
             if (sphereCollider != null)
             {
                 _localCenterOffset = sphereCollider.center;
+            }
+
+            // Cache default trail values for resetting
+            if (BallTrail != null)
+            {
+                _defaultTrailTime = BallTrail.time;
+                _defaultTrailWidth = BallTrail.widthMultiplier;
             }
         }
 
@@ -81,10 +98,15 @@ namespace GolfGame.Controllers
             {
                 if (BallTrail != null) 
                 {
+                    // Reset to default sizes before the next shot
+                    BallTrail.time = _defaultTrailTime;
+                    BallTrail.widthMultiplier = _defaultTrailWidth;
+                    
                     BallTrail.emitting = false;
                     BallTrail.Clear(); 
                 }
             }
+            // ... (keep the rest of your OnStateEnter logic intact)
             else if (newState == GameStateManager.GameState.Aiming)
             {
                 if (trajectoryPredictor != null) trajectoryPredictor.HideTrajectory();
@@ -104,6 +126,25 @@ namespace GolfGame.Controllers
 
                 // Only emit trail if we are NOT putting
                 if (BallTrail != null) BallTrail.emitting = !isPutting;
+            }
+        }
+
+        public void ShrinkTrailOnBounce()
+        {
+            if (BallTrail != null && gameObject.activeInHierarchy)
+            {
+                StartCoroutine(ShrinkTrailCoroutine());
+            }
+        }
+
+        private System.Collections.IEnumerator ShrinkTrailCoroutine()
+        {
+            // Smoothly reduce both length (time) and width until they hit the targets
+            while (BallTrail.time > TargetTrailTime || BallTrail.widthMultiplier > TargetTrailWidth)
+            {
+                BallTrail.time = Mathf.MoveTowards(BallTrail.time, TargetTrailTime, Time.deltaTime * TrailShrinkSpeed);
+                BallTrail.widthMultiplier = Mathf.MoveTowards(BallTrail.widthMultiplier, TargetTrailWidth, Time.deltaTime * TrailShrinkSpeed);
+                yield return null;
             }
         }
 

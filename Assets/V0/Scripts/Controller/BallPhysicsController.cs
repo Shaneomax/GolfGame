@@ -192,7 +192,14 @@ namespace GolfGame.Controllers
                 }
                 else if (bounceCount == 1)
                 {
-                    // First bounce logic is now universal, just driven by the current GroundData
+                    // NEW: Trigger the trail shrink effect
+                    AimVisualsController aimVisuals = GetComponent<AimVisualsController>();
+                    if (aimVisuals != null)
+                    {
+                        aimVisuals.ShrinkTrailOnBounce();
+                    }
+
+                    // First bounce logic
                     StartCoroutine(ApplyFirstBounce(impactVelocity));
                 }
                 else if (bounceCount <= currentGround.MaxBounces)
