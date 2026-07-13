@@ -34,6 +34,7 @@ namespace GolfGame.Controllers
 
         private float _defaultTrailTime;
         private float _defaultTrailWidth;
+        private Coroutine _shrinkCoroutine; // NEW: Track the running coroutine
 
         [Tooltip("At what overpower ratio (0.0 to 1.0) should the line turn Red?")]
         [Range(0.1f, 1.0f)]
@@ -94,6 +95,13 @@ namespace GolfGame.Controllers
 
         private void OnStateEnter(GameStateManager.GameState newState)
         {
+            // NEW: Always stop the shrink coroutine when changing states so it doesn't fight the reset
+            if (_shrinkCoroutine != null)
+            {
+                StopCoroutine(_shrinkCoroutine);
+                _shrinkCoroutine = null;
+            }
+
             if (newState == GameStateManager.GameState.Setup)
             {
                 if (BallTrail != null) 
@@ -106,12 +114,19 @@ namespace GolfGame.Controllers
                     BallTrail.Clear(); 
                 }
             }
-            // ... (keep the rest of your OnStateEnter logic intact)
             else if (newState == GameStateManager.GameState.Aiming)
             {
+                // NEW: Also reset the trail here! 
+                // If the ball stops on the green, it skips "Setup" and goes straight here.
+                if (BallTrail != null) 
+                {
+                    BallTrail.time = _defaultTrailTime;
+                    BallTrail.widthMultiplier = _defaultTrailWidth;
+                    BallTrail.emitting = false;
+                }
+
                 if (trajectoryPredictor != null) trajectoryPredictor.HideTrajectory();
                 if (activeTargetMarker != null) activeTargetMarker.SetActive(false);
-                if (BallTrail != null) BallTrail.emitting = false;
             }
             else if (newState == GameStateManager.GameState.Flight)
             {
@@ -133,7 +148,12 @@ namespace GolfGame.Controllers
         {
             if (BallTrail != null && gameObject.activeInHierarchy)
             {
-                StartCoroutine(ShrinkTrailCoroutine());
+                // Stop any existing shrink command before starting a new one
+                if (_shrinkCoroutine != null)
+                {
+                    StopCoroutine(_shrinkCoroutine);
+                }
+                _shrinkCoroutine = StartCoroutine(ShrinkTrailCoroutine());
             }
         }
 
