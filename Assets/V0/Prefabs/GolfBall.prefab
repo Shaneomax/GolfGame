@@ -597,6 +597,9 @@ MonoBehaviour:
   LowForceColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   NormalForceColor: {r: 0, g: 1, b: 0, a: 1}
   ExtremeForceColor: {r: 1, g: 0, b: 0, a: 1}
+  TrailShrinkSpeed: 0.3
+  TargetTrailTime: 0
+  TargetTrailWidth: 0
   ExtremeForceThreshold: 0.5
 --- !u!114 &-2827105273082855494
 MonoBehaviour:
