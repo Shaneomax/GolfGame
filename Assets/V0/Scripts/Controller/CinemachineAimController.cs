@@ -193,6 +193,7 @@ namespace GolfGame.Controllers
                     {
                         // Standard shot, start at the Launch phase
                         _flightSubState = 0; 
+                        _hasCalculatedRealTarget = false; // Reset so landing spot is re-predicted each shot
                     }
                 }
             }

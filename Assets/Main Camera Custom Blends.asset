@@ -27,7 +27,7 @@ MonoBehaviour:
   - From: ApexCamera
     To: LandingCamera
     Blend:
-      Style: 0
+      Style: 1
       Time: 1
       CustomCurve:
         serializedVersion: 2
@@ -39,7 +39,7 @@ MonoBehaviour:
     To: RollCamera
     Blend:
       Style: 1
-      Time: 2
+      Time: 2.5
       CustomCurve:
         serializedVersion: 2
         m_Curve: []
