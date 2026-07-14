@@ -124,7 +124,8 @@ namespace GolfGame.Controllers
         {
             if (NeedlePivot != null)
             {
-                float currentAngle = Mathf.Lerp(NeedleMinAngle, NeedleMaxAngle, _swingProgress);
+                // Swap NeedleMaxAngle and NeedleMinAngle here
+                float currentAngle = Mathf.Lerp(NeedleMaxAngle, NeedleMinAngle, _swingProgress);
                 NeedlePivot.localRotation = Quaternion.Euler(0f, 0f, currentAngle);
             }
         }
