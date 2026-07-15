@@ -61,15 +61,20 @@ namespace GolfGame.Controllers
                 case GameStateManager.GameState.Setup:
                     InitializeTeeOff();
                     break;
+                    
                 case GameStateManager.GameState.Aiming:
+                    AlignBallToTarget(); // <-- ADD THIS LINE HERE to snap the ball's face to the flag!
                     UnlockAimControls();
                     break;
+                    
                 case GameStateManager.GameState.Swinging:
                     StartSwingMeter();
                     break;
+                    
                 case GameStateManager.GameState.Flight:
                     EnterFlight();
                     break;
+                    
                 case GameStateManager.GameState.Resolution:
                     EnterResolution();
                     break;
