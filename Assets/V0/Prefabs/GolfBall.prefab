@@ -194,8 +194,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1497659883974459721}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: -0.73627126, z: 0, w: 0.6766865}
-  m_LocalPosition: {x: 268.42264, y: 11.221175, z: 451.95752}
+  m_LocalRotation: {x: 0, y: -0.33843443, z: -0, w: 0.94099}
+  m_LocalPosition: {x: 610.8572, y: 3.994689, z: 585.5004}
   m_LocalScale: {x: 500, y: 500, z: 500}
   m_ConstrainProportionsScale: 1
   m_Children:
@@ -615,5 +615,31 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4bc70973db639a3418f16448c192f1b1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GolfGame.Controllers.BallPhysicsController
-  RollPreservationFactor: 0.999
+  RollPreservationFactor: 0
   DefaultGround: {fileID: 11400000, guid: 02b0dd1f2fc066140a151eb01b0b1e97, type: 2}
+  TerrainLayerMappings:
+  - TerrainLayer:
+      serializedVersion: 2
+      m_Bits: 64
+    SurfaceData: {fileID: 11400000, guid: 02b0dd1f2fc066140a151eb01b0b1e97, type: 2}
+  - TerrainLayer:
+      serializedVersion: 2
+      m_Bits: 128
+    SurfaceData: {fileID: 11400000, guid: f6b66d2a82130a541af7d53fb3ee580e, type: 2}
+  - TerrainLayer:
+      serializedVersion: 2
+      m_Bits: 256
+    SurfaceData: {fileID: 11400000, guid: bcfe372e8eb0fa342a4457e3d4b32c6d, type: 2}
+  - TerrainLayer:
+      serializedVersion: 2
+      m_Bits: 512
+    SurfaceData: {fileID: 11400000, guid: 821f38db0370616448d681232df77a27, type: 2}
+  TerrainTextureMappings:
+  - TextureIndex: 0
+    SurfaceData: {fileID: 11400000, guid: 02b0dd1f2fc066140a151eb01b0b1e97, type: 2}
+  - TextureIndex: 2
+    SurfaceData: {fileID: 11400000, guid: f6b66d2a82130a541af7d53fb3ee580e, type: 2}
+  - TextureIndex: 1
+    SurfaceData: {fileID: 11400000, guid: bcfe372e8eb0fa342a4457e3d4b32c6d, type: 2}
+  - TextureIndex: 3
+    SurfaceData: {fileID: 11400000, guid: 821f38db0370616448d681232df77a27, type: 2}

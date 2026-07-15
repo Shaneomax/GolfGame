@@ -1,9 +1,28 @@
 using UnityEngine;
 using GolfGame.Data;
 using GolfGame.Environment;
+using System.Collections.Generic;
 
 namespace GolfGame.Controllers
 {
+    [System.Serializable]
+    public struct LayerGroundMapping
+    {
+        [Tooltip("Select the Unity Layer (e.g., Green, Bunker).")]
+        public LayerMask TerrainLayer;
+        
+        [Tooltip("The GroundData to apply when the ball hits this layer.")]
+        public GroundData SurfaceData;
+    }
+    [System.Serializable]
+    public struct TerrainTextureMapping
+    {
+        [Tooltip("The index in the Terrain's Layer Palette (0 = top texture, 1 = second, etc.)")]
+        public int TextureIndex;
+        
+        [Tooltip("The GroundData to apply for this texture.")]
+        public GroundData SurfaceData;
+    }
     [RequireComponent(typeof(Rigidbody))]
     public class BallPhysicsController : MonoBehaviour
     {
@@ -11,6 +30,13 @@ namespace GolfGame.Controllers
         [Range(0f, 1f)]
         public float RollPreservationFactor = 0.9f;
         public GroundData DefaultGround; // Fallback just in case!
+
+        [Header("Terrain Layer Setup")]
+        [Tooltip("Map your terrain layers (Green, Bunker, etc.) to their specific GroundData.")]
+        public List<LayerGroundMapping> TerrainLayerMappings;
+
+        [Header("Terrain Painted Texture Setup")]
+        public List<TerrainTextureMapping> TerrainTextureMappings;
 
         private Rigidbody rb;
         private Collider ballCollider;
@@ -177,17 +203,44 @@ namespace GolfGame.Controllers
 
         private void OnCollisionEnter(Collision collision)
         {
-            // Fetch the terrain data directly from the object we hit
-            GroundSurface surface = collision.gameObject.GetComponent<GroundSurface>();
-            if (surface != null && surface.SurfaceData != null)
+            currentGround = DefaultGround; // Reset to default initially
+            
+            // 1. Check if we hit a Unity Terrain
+            Terrain hitTerrain = collision.gameObject.GetComponent<Terrain>();
+            if (hitTerrain != null && collision.contacts.Length > 0)
             {
-                currentGround = surface.SurfaceData;
+                // Read the painted texture at the exact point of impact
+                int textureIndex = GetMainTerrainTexture(collision.contacts[0].point, hitTerrain);
+                
+                if (TerrainTextureMappings != null)
+                {
+                    foreach (var mapping in TerrainTextureMappings)
+                    {
+                        if (mapping.TextureIndex == textureIndex)
+                        {
+                            currentGround = mapping.SurfaceData;
+                            break;
+                        }
+                    }
+                }
             }
-            else
+            // 2. Fallback to standard GameObject Layers (for non-terrain objects)
+            else if (TerrainLayerMappings != null)
             {
-                currentGround = DefaultGround; 
+                int hitLayer = collision.gameObject.layer;
+                foreach (var mapping in TerrainLayerMappings)
+                {
+                    if ((mapping.TerrainLayer.value & (1 << hitLayer)) > 0)
+                    {
+                        currentGround = mapping.SurfaceData;
+                        break; 
+                    }
+                }
             }
 
+            // ... The rest of your EXISTING flight and bounce logic remains exactly the same ...
+
+            // --- EXISTING FLIGHT & BOUNCE LOGIC ---
             if (GameStateManager.Instance != null && GameStateManager.Instance.CurrentState == GameStateManager.GameState.Flight)
             {
                 bounceCount++;
@@ -200,7 +253,6 @@ namespace GolfGame.Controllers
                 }
                 else if (bounceCount == 1)
                 {
-                    // NEW: Trigger the trail shrink effect
                     AimVisualsController aimVisuals = GetComponent<AimVisualsController>();
                     if (aimVisuals != null)
                     {
@@ -281,6 +333,40 @@ namespace GolfGame.Controllers
             {
                 currentGround = DefaultGround; // Reset to default when airborne
             }
+        }
+
+        private int GetMainTerrainTexture(Vector3 worldPos, Terrain terrain)
+        {
+            TerrainData terrainData = terrain.terrainData;
+            Vector3 terrainPos = terrain.transform.position;
+
+            // Calculate normalized position on the terrain
+            float mapX = (worldPos.x - terrainPos.x) / terrainData.size.x;
+            float mapZ = (worldPos.z - terrainPos.z) / terrainData.size.z;
+
+            // Convert to alphamap coordinates
+            int alphaX = Mathf.FloorToInt(mapX * terrainData.alphamapWidth);
+            int alphaZ = Mathf.FloorToInt(mapZ * terrainData.alphamapHeight);
+
+            // Safety bounds check
+            if (alphaX < 0 || alphaX >= terrainData.alphamapWidth || alphaZ < 0 || alphaZ >= terrainData.alphamapHeight)
+                return 0;
+
+            // Get the splatmap data at this exact pixel (returns a 3D array)
+            float[,,] splatmapData = terrainData.GetAlphamaps(alphaX, alphaZ, 1, 1);
+
+            // Find the texture index with the highest weight
+            int maxIndex = 0;
+            float maxWeight = 0f;
+            for (int i = 0; i < terrainData.alphamapLayers; i++)
+            {
+                if (splatmapData[0, 0, i] > maxWeight)
+                {
+                    maxWeight = splatmapData[0, 0, i];
+                    maxIndex = i;
+                }
+            }
+            return maxIndex;
         }
     }
 }
