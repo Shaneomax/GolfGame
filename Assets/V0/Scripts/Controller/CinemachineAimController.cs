@@ -275,16 +275,27 @@ namespace GolfGame.Controllers
         /// </summary>
         private void SnapAimCameraForNormalShot()
         {
-            Vector3 aimDir = GetAimDirectionToMarker(fallback: AimTargetAnchor?.forward ?? Vector3.forward);
+            Transform flag = ballInput?.AimVisuals?.FlagTransform;
+            
+            // 1. Calculate direction to the FLAG, not the marker
+            Vector3 aimDir = Vector3.forward;
+            if (flag != null)
+            {
+                aimDir = GetHorizontalDirection(ballTransform.position, flag.position);
+                aimDir = aimDir.sqrMagnitude > 0.001f ? aimDir.normalized : Vector3.forward;
+            }
+            else
+            {
+                aimDir = GetAimDirectionToMarker(fallback: AimTargetAnchor?.forward ?? Vector3.forward);
+            }
 
+            // 2. Position the camera straight behind the ball
             AimCamera.transform.position = ballTransform.position
                 - (aimDir * AimCameraDistance)
                 + (Vector3.up * AimCameraHeight);
 
-            Transform lookTarget = ballInput?.ActiveTargetMarker != null
-                ? ballInput.ActiveTargetMarker.transform
-                : (AimTargetAnchor != null ? AimTargetAnchor : ballTransform);
-            AimCamera.transform.LookAt(lookTarget);
+            // 3. Stare directly at the flag
+            AimCamera.transform.LookAt(flag != null ? flag : ballTransform);
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -446,8 +457,21 @@ namespace GolfGame.Controllers
         /// </summary>
         private void UpdateAimCameraForNormalShot()
         {
-            Vector3 aimDir = GetAimDirectionToMarker(fallback: AimTargetAnchor?.forward ?? Vector3.forward);
+            Transform flag = ballInput?.AimVisuals?.FlagTransform;
+            
+            // 1. Calculate direction to the FLAG, not the marker
+            Vector3 aimDir = Vector3.forward;
+            if (flag != null)
+            {
+                aimDir = GetHorizontalDirection(ballTransform.position, flag.position);
+                aimDir = aimDir.sqrMagnitude > 0.001f ? aimDir.normalized : Vector3.forward;
+            }
+            else
+            {
+                aimDir = GetAimDirectionToMarker(fallback: AimTargetAnchor?.forward ?? Vector3.forward);
+            }
 
+            // 2. Calculate the desired position straight behind the ball
             Vector3 desiredPos = ballTransform.position
                 - (aimDir * AimCameraDistance)
                 + (Vector3.up * AimCameraHeight);
@@ -458,10 +482,8 @@ namespace GolfGame.Controllers
                 Time.deltaTime * PuttingCameraFollowSpeed
             );
 
-            Transform lookAt = ballInput.ActiveTargetMarker != null
-                ? ballInput.ActiveTargetMarker.transform
-                : (AimTargetAnchor != null ? AimTargetAnchor : ballTransform);
-            AimCamera.transform.LookAt(lookAt);
+            // 3. Stare directly at the flag
+            AimCamera.transform.LookAt(flag != null ? flag : ballTransform);
         }
 
         // ─────────────────────────────────────────────────────────────

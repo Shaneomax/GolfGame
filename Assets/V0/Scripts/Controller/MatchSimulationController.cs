@@ -133,7 +133,8 @@ namespace GolfGame.Controllers
         {
             if (activeBall == null || FlagTransform == null) 
             {
-                Debug.LogWarning("[Simulation] Missing Ball or Flag Transform for alignment.");
+                // Comment this out to prevent spam
+                // Debug.LogWarning("[Simulation] Missing Ball or Flag Transform for alignment.");
                 return;
             }
 
@@ -147,7 +148,9 @@ namespace GolfGame.Controllers
             if (directionToFlag != Vector3.zero) 
             {
                 activeBall.transform.rotation = Quaternion.LookRotation(directionToFlag);
-                Debug.Log("[Simulation] Ball Z-axis is now locked onto the flag.");
+                
+                // --- COMMENT THIS OUT TO PREVENT CONSOLE SPAM ---
+                // Debug.Log("[Simulation] Ball Z-axis is now locked onto the flag.");
             }
         }
         
