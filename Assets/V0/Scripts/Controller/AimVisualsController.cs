@@ -79,12 +79,6 @@ namespace GolfGame.Controllers
             {
                 GameStateManager.Instance.OnStateEnter += OnStateEnter;
             }
-
-            // Permanently lock the trail renderer to the true center of the ball
-            if (BallTrail != null)
-            {
-                BallTrail.transform.localPosition = _localCenterOffset;
-            }
         }
 
         private void OnDestroy()
