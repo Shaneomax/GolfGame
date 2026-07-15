@@ -55,7 +55,9 @@ namespace GolfGame.Controllers
         private void Awake()
         {
             // FIX: Force the script to find the active scene flag, overriding any accidentally assigned prefabs.
-            GameObject flagObj = GameObject.FindGameObjectWithTag("Flag");
+            GameObject flagObj = GameObject.Find("Flag");
+            if (flagObj == null) flagObj = GameObject.FindGameObjectWithTag("Flag");
+            
             if (flagObj != null)
             {
                 FlagTransform = flagObj.transform;
@@ -112,17 +114,6 @@ namespace GolfGame.Controllers
 
             if (newState == GameStateManager.GameState.Setup)
             {
-                // NEW: Orient the ball's Z-axis (forward) to face the flag horizontally
-                if (FlagTransform != null)
-                {
-                    Vector3 directionToFlag = FlagTransform.position - transform.position;
-                    directionToFlag.y = 0f; // Ensure the ball doesn't tilt up or down
-                    
-                    if (directionToFlag.sqrMagnitude > 0.001f)
-                    {
-                        transform.forward = directionToFlag.normalized;
-                    }
-                }
 
                 if (BallTrail != null) 
                 {
@@ -196,17 +187,29 @@ namespace GolfGame.Controllers
             {
                 float targetDistance = maxRange * 0.7f; 
                 
+                if (FlagTransform == null)
+                {
+                    GameObject flagObj = GameObject.Find("Flag");
+                    if (flagObj == null) flagObj = GameObject.FindGameObjectWithTag("Flag");
+                    if (flagObj != null) FlagTransform = flagObj.transform;
+                }
+
                 if (FlagTransform != null)
                 {
                     Vector3 toFlag = FlagTransform.position - transform.position;
                     toFlag.y = 0f; 
-                    fixedAimDirection = toFlag.normalized;
-                    
-                    if (toFlag.magnitude < targetDistance)
+                    if (toFlag.sqrMagnitude > 0.001f)
                     {
-                        targetDistance = toFlag.magnitude;
+                        fixedAimDirection = toFlag.normalized;
+                        if (toFlag.magnitude < targetDistance)
+                        {
+                            targetDistance = toFlag.magnitude;
+                        }
                     }
                 }
+                
+                string debugInfo = $"Ball Pos: {transform.position}\nFlag Pos: {(FlagTransform != null ? FlagTransform.position.ToString() : "NULL")}\nAimDir: {fixedAimDirection}\nTargetDist: {targetDistance}\nMaxRange: {maxRange}";
+                System.IO.File.WriteAllText("debug_golf.txt", debugInfo);
 
                 targetDistance = Mathf.Clamp(targetDistance, MinTargetDistance, maxRange);
 
@@ -222,7 +225,10 @@ namespace GolfGame.Controllers
                     spawnPos.y = transform.position.y; // Fallback to ball height
                 }
                 
-                activeTargetMarker = Instantiate(TargetMarkerPrefab, spawnPos, Quaternion.identity);
+                Debug.Log($"[DEBUG Spawn] Final Spawn Pos: {spawnPos}");
+                
+                Quaternion spawnRot = fixedAimDirection.sqrMagnitude > 0.001f ? Quaternion.LookRotation(fixedAimDirection) : Quaternion.identity;
+                activeTargetMarker = Instantiate(TargetMarkerPrefab, spawnPos, spawnRot);
                 //spawnPos.y = 0f;
             }
             
@@ -241,15 +247,24 @@ namespace GolfGame.Controllers
             {
                 float targetDistance = maxRange * 0.7f; 
                 
+                if (FlagTransform == null)
+                {
+                    GameObject flagObj = GameObject.Find("Flag");
+                    if (flagObj == null) flagObj = GameObject.FindGameObjectWithTag("Flag");
+                    if (flagObj != null) FlagTransform = flagObj.transform;
+                }
+
                 if (FlagTransform != null)
                 {
                     Vector3 toFlag = FlagTransform.position - transform.position;
                     toFlag.y = 0f;
-                    fixedAimDirection = toFlag.normalized;
-                    
-                    if (toFlag.magnitude < targetDistance)
+                    if (toFlag.sqrMagnitude > 0.001f)
                     {
-                        targetDistance = toFlag.magnitude;
+                        fixedAimDirection = toFlag.normalized;
+                        if (toFlag.magnitude < targetDistance)
+                        {
+                            targetDistance = toFlag.magnitude;
+                        }
                     }
                 }
 
@@ -268,6 +283,10 @@ namespace GolfGame.Controllers
                 }
                 
                 activeTargetMarker.transform.position = newPos;
+                if (fixedAimDirection.sqrMagnitude > 0.001f)
+                {
+                    activeTargetMarker.transform.rotation = Quaternion.LookRotation(fixedAimDirection);
+                }
                 activeTargetMarker.SetActive(true);
                 
                 initialAimDirection = fixedAimDirection;

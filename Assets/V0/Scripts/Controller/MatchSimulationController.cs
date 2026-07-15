@@ -22,6 +22,7 @@ namespace GolfGame.Controllers
 
         [Tooltip("The transform representing the tee-off location.")]
         public Transform TeeTransform;
+        public Transform FlagTransform;
 
         #endregion
 
@@ -86,30 +87,28 @@ namespace GolfGame.Controllers
             else
                 Debug.LogWarning("[Simulation] CurrentBall data is missing!"); 
 
-            // 1. Grab the exact position and rotation (Z-axis alignment) of the Tee
-            Vector3 exactTeePosition = TeeTransform.position;
-            Quaternion exactTeeRotation = TeeTransform.rotation;
-
+            // 1. SPAWN OR RESET THE BALL
             if (activeBall == null)
             {
-                // 2. Spawn using the Tee's rotation instead of Quaternion.identity
-                activeBall = Instantiate(BallPrefab, exactTeePosition, exactTeeRotation);
+                activeBall = Instantiate(BallPrefab, TeeTransform.position, TeeTransform.rotation);
                 activeBallRb = activeBall.GetComponent<Rigidbody>();
             }
             else
             {
-                // 3. CRITICAL FIX: Force the existing ball back to the Tee's exact Z position and rotation
-                activeBall.transform.position = exactTeePosition;
-                activeBall.transform.rotation = exactTeeRotation;
+                // REMOVE OR COMMENT OUT THESE LINES:
+                // activeBall.transform.position = TeeTransform.position;
+                // activeBall.transform.rotation = TeeTransform.rotation;
                 
                 activeBallRb.linearVelocity = Vector3.zero; 
                 activeBallRb.angularVelocity = Vector3.zero; 
             }
 
+            PlayerInputController inputController = activeBall.GetComponent<PlayerInputController>();
+
+            // 3. APPLY BALL DATA
             if (CurrentBall != null)
             {
                 activeBallRb.mass = CurrentBall.Mass;
-                PlayerInputController inputController = activeBall.GetComponent<PlayerInputController>();
                 if (inputController != null)
                 {
                     inputController.CurrentBall = CurrentBall; 
@@ -123,6 +122,27 @@ namespace GolfGame.Controllers
             if (GameStateManager.Instance != null && GameStateManager.Instance.CurrentState == GameStateManager.GameState.Setup)
             {
                 GameStateManager.Instance.ChangeState(GameStateManager.GameState.Aiming);
+            }
+        }
+        public void AlignBallToTarget()
+        {
+            if (activeBall == null || FlagTransform == null) 
+            {
+                Debug.LogWarning("[Simulation] Missing Ball or Flag Transform for alignment.");
+                return;
+            }
+
+            // 1. Find the direction from the ball to the flag
+            Vector3 directionToFlag = FlagTransform.position - activeBall.transform.position;
+            
+            // 2. Flatten the Y-axis so the ball's Z-axis doesn't tilt into the ground or sky
+            directionToFlag.y = 0f;
+
+            // 3. Apply the new rotation to the ball
+            if (directionToFlag != Vector3.zero) 
+            {
+                activeBall.transform.rotation = Quaternion.LookRotation(directionToFlag);
+                Debug.Log("[Simulation] Ball Z-axis is now locked onto the flag.");
             }
         }
         

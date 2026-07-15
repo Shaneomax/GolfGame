@@ -104,8 +104,7 @@ namespace GolfGame.Controllers
             {
                 if (AimVisuals != null)
                 {
-                    AimVisuals.SpawnTargetMarker(CalculateMaxRange());
-                    AimVisuals.RepositionTargetMarker(CalculateMaxRange());
+                    StartCoroutine(DelayedMarkerSetup());
                 }
             }
             else if (newState == GameStateManager.GameState.Aiming)
@@ -115,6 +114,16 @@ namespace GolfGame.Controllers
             else if (newState == GameStateManager.GameState.Flight)
             {
                 if (PhysicsController != null) PhysicsController.NotifyFlightStarted();
+            }
+        }
+        
+        private System.Collections.IEnumerator DelayedMarkerSetup()
+        {
+            yield return new WaitForEndOfFrame();
+            if (AimVisuals != null)
+            {
+                AimVisuals.SpawnTargetMarker(CalculateMaxRange());
+                AimVisuals.RepositionTargetMarker(CalculateMaxRange());
             }
         }
 
@@ -160,11 +169,16 @@ namespace GolfGame.Controllers
             // 1. Check for initial click to start dragging
             if (Input.GetMouseButtonDown(0))
             {
+                if (UnityEngine.EventSystems.EventSystem.current != null && 
+                    UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject()) return;
+
                 Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
                 if (Physics.Raycast(ray, out RaycastHit hit))
                 {
                     // Verify if the player clicked on or near the target marker
-                    if (AimVisuals.ActiveTargetMarker != null && hit.transform.gameObject == AimVisuals.ActiveTargetMarker)
+                    if (AimVisuals.ActiveTargetMarker != null && 
+                       (hit.collider.gameObject == AimVisuals.ActiveTargetMarker || 
+                        hit.collider.transform.IsChildOf(AimVisuals.ActiveTargetMarker.transform)))
                     {
                         isDraggingTarget = true;
                     }
@@ -180,47 +194,37 @@ namespace GolfGame.Controllers
             {
                 Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
                 
-                // FIX 1: Set the plane at the ball's actual height, not Vector3.zero
                 Plane groundPlane = new Plane(Vector3.up, transform.position); 
                 
                 if (groundPlane.Raycast(ray, out float enter))
                 {
-                    // Get the point on the plane where the mouse ray hit
                     Vector3 hitPoint = ray.GetPoint(enter);
                     
-                    // Calculate direction and distance from the ball
-                    Vector3 testDir = hitPoint - transform.position;
-                    testDir.y = 0f; // Keep direction strictly horizontal
-                    float testDist = testDir.magnitude;
-                    
-                    if (testDist > 0.001f) // Prevent division by zero
+                    Vector3 diff = hitPoint - transform.position;
+                    Vector3 horizontalDiff = new Vector3(diff.x, 0f, diff.z);
+                    float maxRange = CalculateMaxRange();
+
+                    Vector3 desiredDir = horizontalDiff.normalized;
+                    if (desiredDir.sqrMagnitude > 0.001f)
                     {
-                        testDir.Normalize();
-                    }
+                        float signedAngle = Vector3.SignedAngle(AimVisuals.InitialAimDirection, desiredDir, Vector3.up);
+                        float clampedAngle = Mathf.Clamp(signedAngle, -AimVisuals.MaxAimAngle, AimVisuals.MaxAimAngle);
 
-                    // --- DISTANCE CLAMPING ---
-                    // Replace 'maxRange' with whatever variable you use to limit the club's distance
-                    // testDist = Mathf.Clamp(testDist, 1f, maxRange); 
-
-                    Vector3 testHitPoint = transform.position + testDir * testDist;
-                    
-                    // FIX 2: Keep the test point on the ball's plane, do not force it to 0f
-                    testHitPoint.y = transform.position.y; 
-
-                    // --- VIEWPORT CHECKS ---
-                    Vector3 viewportPos = mainCamera.WorldToViewportPoint(testHitPoint);
-                    
-                    // Ensure the target marker stays on the screen (between 0 and 1) and in front of the camera (z > 0)
-                    if (viewportPos.x >= 0.02f && viewportPos.x <= 0.98f && 
-                        viewportPos.y >= 0.02f && viewportPos.y <= 0.98f && 
-                        viewportPos.z > 0f)
-                    {
-                        // Update the marker to the new calculated position
-                        AimVisuals.ActiveTargetMarker.transform.position = testHitPoint;
+                        Vector3 testDir = Quaternion.AngleAxis(clampedAngle, Vector3.up) * AimVisuals.InitialAimDirection;
+                        float testDist = Mathf.Clamp(horizontalDiff.magnitude, AimVisuals.MinTargetDistance, maxRange);
                         
-                        // If you track the direction or distance in variables for the rest of your script, update them here:
-                        // aimDirection = testDir;
-                        // currentTargetDistance = testDist;
+                        Vector3 testHitPoint = transform.position + testDir * testDist;
+                        testHitPoint.y = transform.position.y; 
+
+                        Vector3 viewportPos = mainCamera.WorldToViewportPoint(testHitPoint);
+                        
+                        if (viewportPos.x >= 0.02f && viewportPos.x <= 0.98f && 
+                            viewportPos.y >= 0.02f && viewportPos.y <= 0.98f && 
+                            viewportPos.z > 0f)
+                        {
+                            AimVisuals.UpdateAimDirection(testDir);
+                            AimVisuals.ActiveTargetMarker.transform.position = testHitPoint;
+                        }
                     }
                 }
             }
