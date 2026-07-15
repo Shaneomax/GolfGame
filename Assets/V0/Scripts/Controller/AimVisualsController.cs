@@ -54,6 +54,18 @@ namespace GolfGame.Controllers
 
         private void Awake()
         {
+            // FIX: Force the script to find the active scene flag, overriding any accidentally assigned prefabs.
+            GameObject flagObj = GameObject.FindGameObjectWithTag("Flag");
+            if (flagObj != null)
+            {
+                FlagTransform = flagObj.transform;
+                Debug.Log("[AimVisuals] Successfully locked onto the active 'Flag' in the scene.");
+            }
+            else
+            {
+                Debug.LogWarning("[AimVisuals] No GameObject with the 'Flag' tag was found in the scene!");
+            }
+
             trajectoryPredictor = GetComponent<TrajectoryPredictor>();
             mainCamera = Camera.main;
             
@@ -65,7 +77,7 @@ namespace GolfGame.Controllers
                 _ballRadius = sphereCollider.radius * Mathf.Max(transform.localScale.x, transform.localScale.y, transform.localScale.z) * 1.15f;
             }
 
-            // RESTORED: Cache default trail values for resetting!
+            // Cache default trail values for resetting
             if (BallTrail != null)
             {
                 _defaultTrailTime = BallTrail.time;
@@ -100,6 +112,18 @@ namespace GolfGame.Controllers
 
             if (newState == GameStateManager.GameState.Setup)
             {
+                // NEW: Orient the ball's Z-axis (forward) to face the flag horizontally
+                if (FlagTransform != null)
+                {
+                    Vector3 directionToFlag = FlagTransform.position - transform.position;
+                    directionToFlag.y = 0f; // Ensure the ball doesn't tilt up or down
+                    
+                    if (directionToFlag.sqrMagnitude > 0.001f)
+                    {
+                        transform.forward = directionToFlag.normalized;
+                    }
+                }
+
                 if (BallTrail != null) 
                 {
                     BallTrail.time = _defaultTrailTime;
@@ -187,8 +211,19 @@ namespace GolfGame.Controllers
                 targetDistance = Mathf.Clamp(targetDistance, MinTargetDistance, maxRange);
 
                 Vector3 spawnPos = transform.position + fixedAimDirection * targetDistance;
-                spawnPos.y = 0f;
+    
+                // FIX: Snap the marker to the actual ground terrain instead of hardcoding 0f
+                if (Physics.Raycast(spawnPos + Vector3.up * 50f, Vector3.down, out RaycastHit hit, 100f))
+                {
+                    spawnPos.y = hit.point.y;
+                }
+                else
+                {
+                    spawnPos.y = transform.position.y; // Fallback to ball height
+                }
+                
                 activeTargetMarker = Instantiate(TargetMarkerPrefab, spawnPos, Quaternion.identity);
+                //spawnPos.y = 0f;
             }
             
             if (activeTargetMarker != null)
@@ -221,11 +256,22 @@ namespace GolfGame.Controllers
                 targetDistance = Mathf.Clamp(targetDistance, MinTargetDistance, maxRange);
 
                 Vector3 newPos = transform.position + fixedAimDirection * targetDistance;
-                newPos.y = 0f;
+    
+                // FIX: Apply the same terrain-snapping fix here
+                if (Physics.Raycast(newPos + Vector3.up * 50f, Vector3.down, out RaycastHit hit, 100f))
+                {
+                    newPos.y = hit.point.y;
+                }
+                else
+                {
+                    newPos.y = transform.position.y; // Fallback to ball height
+                }
+                
                 activeTargetMarker.transform.position = newPos;
                 activeTargetMarker.SetActive(true);
                 
-                initialAimDirection = fixedAimDirection; 
+                initialAimDirection = fixedAimDirection;
+                //newPos.y = 0f;
             }
         }
 

@@ -157,60 +157,72 @@ namespace GolfGame.Controllers
 
         private void HandleSetupInput()
         {
-            if (AimVisuals == null) return;
-
+            // 1. Check for initial click to start dragging
             if (Input.GetMouseButtonDown(0))
             {
-                if (UnityEngine.EventSystems.EventSystem.current != null && 
-                    UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject()) return;
-
                 Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
                 if (Physics.Raycast(ray, out RaycastHit hit))
                 {
-                    if (AimVisuals.ActiveTargetMarker != null && 
-                       (hit.collider.gameObject == AimVisuals.ActiveTargetMarker || 
-                        hit.collider.transform.IsChildOf(AimVisuals.ActiveTargetMarker.transform)))
+                    // Verify if the player clicked on or near the target marker
+                    if (AimVisuals.ActiveTargetMarker != null && hit.transform.gameObject == AimVisuals.ActiveTargetMarker)
                     {
                         isDraggingTarget = true;
                     }
                 }
             }
-            else if (Input.GetMouseButton(0) && isDraggingTarget && AimVisuals.ActiveTargetMarker != null)
-            {
-                Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
-                Plane groundPlane = new Plane(Vector3.up, Vector3.zero);
-                if (groundPlane.Raycast(ray, out float enter))
-                {
-                    Vector3 hitPoint = ray.GetPoint(enter);
-                    Vector3 diff = hitPoint - transform.position;
-                    Vector3 horizontalDiff = new Vector3(diff.x, 0f, diff.z);
-                    float maxRange = CalculateMaxRange();
-
-                    Vector3 desiredDir = horizontalDiff.normalized;
-                    if (desiredDir.sqrMagnitude > 0.001f)
-                    {
-                        float signedAngle = Vector3.SignedAngle(AimVisuals.InitialAimDirection, desiredDir, Vector3.up);
-                        float clampedAngle = Mathf.Clamp(signedAngle, -AimVisuals.MaxAimAngle, AimVisuals.MaxAimAngle);
-
-                        Vector3 testDir = Quaternion.AngleAxis(clampedAngle, Vector3.up) * AimVisuals.InitialAimDirection;
-                        float testDist = Mathf.Clamp(horizontalDiff.magnitude, AimVisuals.MinTargetDistance, maxRange);
-                        
-                        Vector3 testHitPoint = transform.position + testDir * testDist;
-                        testHitPoint.y = 0f;
-
-                        Vector3 viewportPos = mainCamera.WorldToViewportPoint(testHitPoint);
-                        if (viewportPos.x >= 0f && viewportPos.x <= 1f && viewportPos.y >= 0f && viewportPos.y <= 1f && viewportPos.z > 0f)
-                        {
-                            AimVisuals.UpdateAimDirection(testDir);
-                            hitPoint = testHitPoint;
-                            AimVisuals.ActiveTargetMarker.transform.position = hitPoint;
-                        }
-                    }
-                }
-            }
+            // 2. Stop dragging when mouse is released
             else if (Input.GetMouseButtonUp(0))
             {
                 isDraggingTarget = false;
+            }
+            // 3. Handle the dragging and repositioning
+            else if (Input.GetMouseButton(0) && isDraggingTarget && AimVisuals.ActiveTargetMarker != null)
+            {
+                Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
+                
+                // FIX 1: Set the plane at the ball's actual height, not Vector3.zero
+                Plane groundPlane = new Plane(Vector3.up, transform.position); 
+                
+                if (groundPlane.Raycast(ray, out float enter))
+                {
+                    // Get the point on the plane where the mouse ray hit
+                    Vector3 hitPoint = ray.GetPoint(enter);
+                    
+                    // Calculate direction and distance from the ball
+                    Vector3 testDir = hitPoint - transform.position;
+                    testDir.y = 0f; // Keep direction strictly horizontal
+                    float testDist = testDir.magnitude;
+                    
+                    if (testDist > 0.001f) // Prevent division by zero
+                    {
+                        testDir.Normalize();
+                    }
+
+                    // --- DISTANCE CLAMPING ---
+                    // Replace 'maxRange' with whatever variable you use to limit the club's distance
+                    // testDist = Mathf.Clamp(testDist, 1f, maxRange); 
+
+                    Vector3 testHitPoint = transform.position + testDir * testDist;
+                    
+                    // FIX 2: Keep the test point on the ball's plane, do not force it to 0f
+                    testHitPoint.y = transform.position.y; 
+
+                    // --- VIEWPORT CHECKS ---
+                    Vector3 viewportPos = mainCamera.WorldToViewportPoint(testHitPoint);
+                    
+                    // Ensure the target marker stays on the screen (between 0 and 1) and in front of the camera (z > 0)
+                    if (viewportPos.x >= 0.02f && viewportPos.x <= 0.98f && 
+                        viewportPos.y >= 0.02f && viewportPos.y <= 0.98f && 
+                        viewportPos.z > 0f)
+                    {
+                        // Update the marker to the new calculated position
+                        AimVisuals.ActiveTargetMarker.transform.position = testHitPoint;
+                        
+                        // If you track the direction or distance in variables for the rest of your script, update them here:
+                        // aimDirection = testDir;
+                        // currentTargetDistance = testDist;
+                    }
+                }
             }
         }
 

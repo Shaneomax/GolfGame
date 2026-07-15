@@ -11,6 +11,7 @@ TagManager:
   - Fairway
   - Bunker
   - NiceOn
+  - Marker
   layers:
   - Default
   - TransparentFX

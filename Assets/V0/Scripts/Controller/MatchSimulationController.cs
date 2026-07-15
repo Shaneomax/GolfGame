@@ -86,16 +86,24 @@ namespace GolfGame.Controllers
             else
                 Debug.LogWarning("[Simulation] CurrentBall data is missing!"); 
 
+            // 1. Grab the exact position and rotation (Z-axis alignment) of the Tee
+            Vector3 exactTeePosition = TeeTransform.position;
+            Quaternion exactTeeRotation = TeeTransform.rotation;
+
             if (activeBall == null)
             {
-                activeBall = Instantiate(BallPrefab, TeeTransform.position, Quaternion.identity);
+                // 2. Spawn using the Tee's rotation instead of Quaternion.identity
+                activeBall = Instantiate(BallPrefab, exactTeePosition, exactTeeRotation);
                 activeBallRb = activeBall.GetComponent<Rigidbody>();
             }
             else
             {
+                // 3. CRITICAL FIX: Force the existing ball back to the Tee's exact Z position and rotation
+                activeBall.transform.position = exactTeePosition;
+                activeBall.transform.rotation = exactTeeRotation;
+                
                 activeBallRb.linearVelocity = Vector3.zero; 
                 activeBallRb.angularVelocity = Vector3.zero; 
-                
             }
 
             if (CurrentBall != null)
