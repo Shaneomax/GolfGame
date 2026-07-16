@@ -2661,7 +2661,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 2147483647
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!154 &360648521
 TerrainCollider:
   m_ObjectHideFlags: 0
@@ -10846,7 +10846,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!64 &1466105760
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -15464,7 +15464,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2418715018993201027, guid: bd4e6f0bc98914d439e9d9c1deae8654, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 3.1
+      value: 13.75
       objectReference: {fileID: 0}
     - target: {fileID: 2418715018993201027, guid: bd4e6f0bc98914d439e9d9c1deae8654, type: 3}
       propertyPath: m_LocalPosition.z
@@ -17561,7 +17561,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8573467913563735265, guid: 5db3a937b7a39fe48aabeeeebf03f066, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -12.33
+      value: -2.36
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

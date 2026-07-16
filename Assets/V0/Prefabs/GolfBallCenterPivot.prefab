@@ -192,8 +192,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3650668463176287538}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0.88076794, z: 0, w: 0.47354814}
-  m_LocalPosition: {x: 79.52152, y: 31.955288, z: 147.14906}
+  m_LocalRotation: {x: 0, y: -0.7071068, z: -0, w: 0.7071068}
+  m_LocalPosition: {x: 414.29892, y: 32.05686, z: 144.344}
   m_LocalScale: {x: 500, y: 500, z: 500}
   m_ConstrainProportionsScale: 1
   m_Children:
@@ -566,24 +566,24 @@ MonoBehaviour:
     SurfaceData: {fileID: 11400000, guid: 02b0dd1f2fc066140a151eb01b0b1e97, type: 2}
   - TerrainLayer:
       serializedVersion: 2
-      m_Bits: 128
+      m_Bits: 512
     SurfaceData: {fileID: 11400000, guid: f6b66d2a82130a541af7d53fb3ee580e, type: 2}
+  - TerrainLayer:
+      serializedVersion: 2
+      m_Bits: 128
+    SurfaceData: {fileID: 11400000, guid: bcfe372e8eb0fa342a4457e3d4b32c6d, type: 2}
   - TerrainLayer:
       serializedVersion: 2
       m_Bits: 256
-    SurfaceData: {fileID: 11400000, guid: bcfe372e8eb0fa342a4457e3d4b32c6d, type: 2}
-  - TerrainLayer:
-      serializedVersion: 2
-      m_Bits: 512
     SurfaceData: {fileID: 11400000, guid: 821f38db0370616448d681232df77a27, type: 2}
   TerrainTextureMappings:
-  - TextureIndex: 0
-    SurfaceData: {fileID: 11400000, guid: 02b0dd1f2fc066140a151eb01b0b1e97, type: 2}
-  - TextureIndex: 2
-    SurfaceData: {fileID: 11400000, guid: f6b66d2a82130a541af7d53fb3ee580e, type: 2}
   - TextureIndex: 1
+    SurfaceData: {fileID: 11400000, guid: 02b0dd1f2fc066140a151eb01b0b1e97, type: 2}
+  - TextureIndex: 33
+    SurfaceData: {fileID: 11400000, guid: f6b66d2a82130a541af7d53fb3ee580e, type: 2}
+  - TextureIndex: 0
     SurfaceData: {fileID: 11400000, guid: bcfe372e8eb0fa342a4457e3d4b32c6d, type: 2}
-  - TextureIndex: 3
+  - TextureIndex: 2
     SurfaceData: {fileID: 11400000, guid: 821f38db0370616448d681232df77a27, type: 2}
 --- !u!1 &9168367827328779700
 GameObject:
