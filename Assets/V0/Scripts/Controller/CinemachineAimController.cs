@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using Unity.Cinemachine;
 
 namespace GolfGame.Controllers
@@ -202,10 +202,9 @@ namespace GolfGame.Controllers
             var orbitalFollow = AimCamera.GetComponent<CinemachineOrbitalFollow>();
             if (orbitalFollow != null) orbitalFollow.enabled = false;
 
-            if (IsPutting && HasFlagReference())
-                SnapAimCameraForPutting();
-            else
-                SnapAimCameraForNormalShot();
+            // Always use the normal shot snap regardless of ground type (NiceOn/putting).
+            // This ensures the aim camera always appears in the same consistent position.
+            SnapAimCameraForNormalShot();
         }
 
         /// <summary>
@@ -336,10 +335,8 @@ namespace GolfGame.Controllers
         /// </summary>
         private void HandleFlightRollUpdate()
         {
-            if (IsPutting)
-                UpdateAimCameraLookAt();
-            else
-                HandleRollAnchorTracking();
+            // Always use the roll anchor (consistent for all ground types including NiceOn).
+            HandleRollAnchorTracking();
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -423,10 +420,8 @@ namespace GolfGame.Controllers
         {
             if (ballInput == null || ballTransform == null || AimCamera == null) return;
 
-            if (IsPutting && HasFlagReference())
-                UpdateAimCameraForPutting();
-            else
-                UpdateAimCameraForNormalShot();
+            // Always use normal-shot camera tracking regardless of ground type.
+            UpdateAimCameraForNormalShot();
         }
 
         /// <summary>
