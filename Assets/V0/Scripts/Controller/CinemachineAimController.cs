@@ -64,6 +64,26 @@ namespace GolfGame.Controllers
         public float AimCameraHeight = 2f;
 
         // ─────────────────────────────────────────────────────────────
+        // Inspector – Roll Camera Smooth Follow
+        // ─────────────────────────────────────────────────────────────
+        [Header("Roll Camera Smooth Follow")]
+        [Tooltip("Distance behind the ball the roll camera sits.")]
+        public float RollCameraDistance = 4f;
+
+        [Tooltip("Height above the ball the roll camera sits.")]
+        public float RollCameraHeight = 2f;
+
+        [Tooltip("How quickly the camera catches up to the ball. Lower = more cinematic lag.")]
+        public float RollCameraFollowSpeed = 4f;
+
+        [Tooltip("How quickly the camera rotates to face behind the ball's direction. Lower = softer turns.")]
+        public float RollCameraLookSpeed = 5f;
+
+        [Tooltip("How much the ball's live velocity direction steers the camera. 0 = always behind shot dir, 1 = always behind velocity.")]
+        [Range(0f, 1f)]
+        public float RollCameraVelocityInfluence = 0.85f;
+
+        // ─────────────────────────────────────────────────────────────
         // Inspector – Landing Camera (Planted) Settings
         // ─────────────────────────────────────────────────────────────
         [Header("Landing Camera (Planted) Settings")]
@@ -100,6 +120,12 @@ namespace GolfGame.Controllers
         private float   _totalShotDistance;
         private int     _flightSubState          = FlightState_Launch;
         private bool    _hasCalculatedRealTarget = false;
+
+        // ─────────────────────────────────────────────────────────────
+        // Private – Roll camera smooth-follow state
+        // ─────────────────────────────────────────────────────────────
+        private Vector3 _rollCamVelocityRef     = Vector3.zero; // SmoothDamp velocity
+        private Vector3 _smoothedRollDir        = Vector3.forward; // smoothed travel direction
 
         // ─────────────────────────────────────────────────────────────
         // Helpers
@@ -223,11 +249,14 @@ namespace GolfGame.Controllers
 
             if (IsPutting)
             {
-                // Putting: jump straight to roll phase using the smooth AimCamera
+                // Putting: jump straight to roll phase.
+                // Keep the AimCamera active — it will slowly drift to follow the ball.
+                // RollCamera is NOT used for putts.
                 _flightSubState = FlightState_Roll;
+
                 if (FlightCamera != null) FlightCamera.Priority = 0;
-                if (AimCamera   != null) AimCamera.Priority    = 10;
                 if (RollCamera  != null) RollCamera.Priority   = 0;
+                if (AimCamera   != null) AimCamera.Priority    = 10; // stays on from aiming phase
             }
             else
             {
@@ -331,12 +360,15 @@ namespace GolfGame.Controllers
 
         /// <summary>
         /// Per-frame update during the Roll sub-state.
-        /// Putting uses the smooth AimCamera; normal shots use the roll anchor.
+        /// Putting keeps the AimCamera and lets it slowly drift to follow the ball.
+        /// Normal shots drive the RollCamera manually for a cinematic follow.
         /// </summary>
         private void HandleFlightRollUpdate()
         {
-            // Always use the roll anchor (consistent for all ground types including NiceOn).
-            HandleRollAnchorTracking();
+            if (IsPutting)
+                UpdateAimCameraLookAt();   // AimCamera drifts slowly — feels stable, not locked
+            else
+                HandleRollAnchorTracking(); // RollCamera with velocity-aware smooth damp
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -595,29 +627,80 @@ namespace GolfGame.Controllers
         /// </summary>
         private void TransitionToRollCamera()
         {
-            _flightSubState = FlightState_Roll;
-            if (LandingCamera != null) LandingCamera.Priority = 0;
+            _flightSubState  = FlightState_Roll;
+            _smoothedRollDir = GetHorizontalDirection(_shotStartPosition, _shotTargetPosition).normalized;
+            if (_smoothedRollDir.sqrMagnitude < 0.001f) _smoothedRollDir = Vector3.forward;
 
-            if (RollCamera == null) return;
+            if (LandingCamera != null) LandingCamera.Priority = 0;
+            if (RollCamera    == null) return;
 
             RollCamera.Priority = 10;
-            RollCamera.Follow   = ballTransform;
-            RollCamera.LookAt   = ballTransform;
+            RollCamera.Follow   = null;           // We drive the transform manually for smooth organic feel
+            RollCamera.LookAt   = ballTransform;  // Cinemachine still handles look-at damping
+
+            // Seed position behind ball so there is no pop on first frame
+            _rollCamVelocityRef = Vector3.zero;
+            RollCamera.transform.position = ballTransform.position
+                - (_smoothedRollDir * RollCameraDistance)
+                + (Vector3.up       * RollCameraHeight);
         }
 
         /// <summary>
         /// Keeps the <see cref="AimTargetAnchor"/> locked at the ball's position
         /// with rotation pointing along the original shot direction during the roll phase.
         /// </summary>
+        /// <summary>
+        /// Smoothly drives the RollCamera behind the ball using the ball's live velocity direction.
+        /// Uses SmoothDamp for position (gives natural lag/inertia) and Slerp for direction
+        /// (prevents snapping when the ball curves or slows).
+        /// </summary>
         private void HandleRollAnchorTracking()
         {
-            if (ballTransform == null || AimTargetAnchor == null) return;
+            if (ballTransform == null || RollCamera == null) return;
 
-            AimTargetAnchor.position = ballTransform.position;
-
+            // ── 1. Resolve the target travel direction ─────────────────────────
+            // Blend the original shot direction with the ball's live velocity direction.
+            // This means the camera slowly swings around as the ball curves or rolls.
             Vector3 shotDir = GetHorizontalDirection(_shotStartPosition, _shotTargetPosition).normalized;
-            if (shotDir.sqrMagnitude > 0.001f)
-                AimTargetAnchor.rotation = Quaternion.LookRotation(shotDir);
+            if (shotDir.sqrMagnitude < 0.001f) shotDir = Vector3.forward;
+
+            Vector3 velDir = shotDir; // fallback
+            if (ballRigidbody != null)
+            {
+                Vector3 flatVel = new Vector3(ballRigidbody.linearVelocity.x, 0f, ballRigidbody.linearVelocity.z);
+                if (flatVel.sqrMagnitude > 0.04f)   // ignore micro-movements (< ~0.2 m/s)
+                    velDir = flatVel.normalized;
+            }
+
+            Vector3 targetDir = Vector3.Slerp(shotDir, velDir, RollCameraVelocityInfluence);
+
+            // ── 2. Smooth the direction to avoid jitter ────────────────────────
+            _smoothedRollDir = Vector3.Slerp(
+                _smoothedRollDir,
+                targetDir,
+                Time.deltaTime * RollCameraLookSpeed
+            );
+            if (_smoothedRollDir.sqrMagnitude < 0.001f) _smoothedRollDir = shotDir;
+
+            // ── 3. Compute desired camera position behind ball ─────────────────
+            Vector3 desiredPos = ballTransform.position
+                - (_smoothedRollDir * RollCameraDistance)
+                + (Vector3.up       * RollCameraHeight);
+
+            // ── 4. SmoothDamp to desired position (gives organic inertia lag) ──
+            RollCamera.transform.position = Vector3.SmoothDamp(
+                RollCamera.transform.position,
+                desiredPos,
+                ref _rollCamVelocityRef,
+                1f / Mathf.Max(RollCameraFollowSpeed, 0.01f)
+            );
+
+            // ── 5. Keep AimTargetAnchor in sync (other systems may read it) ────
+            if (AimTargetAnchor != null)
+            {
+                AimTargetAnchor.position = ballTransform.position;
+                AimTargetAnchor.rotation = Quaternion.LookRotation(_smoothedRollDir);
+            }
         }
 
         // ─────────────────────────────────────────────────────────────

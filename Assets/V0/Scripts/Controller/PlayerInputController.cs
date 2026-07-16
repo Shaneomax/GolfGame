@@ -110,6 +110,15 @@ namespace GolfGame.Controllers
             else if (newState == GameStateManager.GameState.Aiming)
             {
                 if (AccuracyController != null) AccuracyController.SetClub(CurrentClub);
+
+                // When ball is on NiceOn (putting green), Setup state is skipped entirely.
+                // Putting uses the flag direction directly — the target marker is not needed,
+                // so hide it to keep the screen clean.
+                if (IsPuttingMode() && AimVisuals != null)
+                {
+                    if (AimVisuals.ActiveTargetMarker != null)
+                        AimVisuals.ActiveTargetMarker.SetActive(false);
+                }
             }
             else if (newState == GameStateManager.GameState.Flight)
             {
