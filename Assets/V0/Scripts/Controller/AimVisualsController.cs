@@ -208,8 +208,6 @@ namespace GolfGame.Controllers
                     }
                 }
                 
-                string debugInfo = $"Ball Pos: {transform.position}\nFlag Pos: {(FlagTransform != null ? FlagTransform.position.ToString() : "NULL")}\nAimDir: {fixedAimDirection}\nTargetDist: {targetDistance}\nMaxRange: {maxRange}";
-                System.IO.File.WriteAllText("debug_golf.txt", debugInfo);
 
                 targetDistance = Mathf.Clamp(targetDistance, MinTargetDistance, maxRange);
 

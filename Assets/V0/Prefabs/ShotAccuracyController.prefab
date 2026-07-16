@@ -54,4 +54,4 @@ MonoBehaviour:
   GlobalNeedleSpeed: 0.32
   ExtremeForceThreshold: 0.5
   OverpowerSpeedMultiplier: 1.5
-  RedZoneSpeedMultiplier: 5
+  RedZoneSpeedMultiplier: 1.9

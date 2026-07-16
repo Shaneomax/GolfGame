@@ -161,7 +161,9 @@ namespace GolfGame.Controllers
         {
             if (GameStateManager.Instance == null) return;
 
-            if (GameStateManager.Instance.CurrentState == GameStateManager.GameState.Setup)
+            var state = GameStateManager.Instance.CurrentState;
+
+            if (state == GameStateManager.GameState.Setup)
             {
                 HandleSetupInput();
                 
@@ -170,6 +172,13 @@ namespace GolfGame.Controllers
                     Vector3 launchVelocity = CalculateVelocityToHitTarget(AimVisuals.ActiveTargetMarker.transform.position);
                     AimVisuals.ShowTrajectory(launchVelocity);
                 }
+            }
+            else if (state == GameStateManager.GameState.Aiming)
+            {
+                // Use Update-based polling instead of OnMouseDown/Up callbacks.
+                // OnMouse* callbacks require the touch to hit the ball's Collider, which
+                // silently fails on real Android devices when the ball is small on screen.
+                HandleAimingInput();
             }
         }
 
@@ -290,102 +299,98 @@ namespace GolfGame.Controllers
             return finalAimDir * (maxSpeed * powerRatio);
         }
 
-        private void OnMouseDown()
+        /// <summary>
+        /// Handles all drag input while in the Aiming state.
+        /// Uses Update()-based polling (GetMouseButtonDown/Up) instead of OnMouse* callbacks
+        /// so it works reliably on real Android devices without requiring a collider hit.
+        /// </summary>
+        private void HandleAimingInput()
         {
-            if (GameStateManager.Instance.CurrentState != GameStateManager.GameState.Aiming) return;
-            isDragging = true;
-            dragStartPosition = Input.mousePosition; 
-            
-            if (AimVisuals != null)
+            // ── Finger/mouse pressed this frame ──────────────────────────────────
+            if (Input.GetMouseButtonDown(0))
             {
-                if (IsPuttingMode())
-                {
-                    AimVisuals.UpdatePuttingLine(0, 0, transform.position, 0f);
-                }
-                else
-                {
-                    AimVisuals.UpdateDragLine(0, 0, transform.position);
-                }
-            }
-        }
+                isDragging = true;
+                dragStartPosition = Input.mousePosition;
 
-        private void OnMouseDrag()
-        {
-            if (!isDragging) return;
-            Vector3 dragVector = dragStartPosition - Input.mousePosition;
-            
-            float dragMagnitude = Mathf.Clamp(GetScaledDragMagnitude(dragVector), 0f, MaxDragDistance);
-            float overpowerRatio = Mathf.InverseLerp(NormalDragDistance, MaxDragDistance, dragMagnitude);
-
-            // Calculate the angle. If pulling straight down, dragVector.x is 0, so angle is 0.
-            float dragAngle = Mathf.Atan2(dragVector.x, dragVector.y) * Mathf.Rad2Deg;
-
-            if (AccuracyController != null)
-            {
-                float? threshold = AimVisuals != null ? AimVisuals.ExtremeForceThreshold : (float?)null;
-                AccuracyController.SetDragPowerMultiplier(overpowerRatio, threshold);
-            }
-
-            if (AimVisuals != null)
-            {
-                if (IsPuttingMode())
+                if (AimVisuals != null)
                 {
-                    AimVisuals.UpdatePuttingLine(dragMagnitude, overpowerRatio, transform.position, dragAngle);
-                }
-                else
-                {
-                    AimVisuals.UpdateDragLine(dragMagnitude, overpowerRatio, transform.position);
+                    if (IsPuttingMode())
+                        AimVisuals.UpdatePuttingLine(0, 0, transform.position, 0f);
+                    else
+                        AimVisuals.UpdateDragLine(0, 0, transform.position);
                 }
             }
-        }
-
-        private void OnMouseUp()
-        {
-            if (!isDragging) return;
-            isDragging = false;
-
-            if (AimVisuals != null)
+            // ── Finger/mouse held ─────────────────────────────────────────────────
+            else if (Input.GetMouseButton(0) && isDragging)
             {
-                AimVisuals.HideDragLine();
-                AimVisuals.HideTrajectory();
-            }
+                Vector3 dragVector = dragStartPosition - Input.mousePosition;
 
-            Vector3 dragVector = dragStartPosition - Input.mousePosition;
-            float dragMagnitude = GetScaledDragMagnitude(dragVector);
+                float dragMagnitude = Mathf.Clamp(GetScaledDragMagnitude(dragVector), 0f, MaxDragDistance);
+                float overpowerRatio = Mathf.InverseLerp(NormalDragDistance, MaxDragDistance, dragMagnitude);
+                float dragAngle = Mathf.Atan2(dragVector.x, dragVector.y) * Mathf.Rad2Deg;
 
-            if (dragMagnitude < MinDragToShoot)
-            {
                 if (AccuracyController != null)
                 {
-                    AccuracyController.SetDragPowerMultiplier(0f);
-                    AccuracyController.ResetLock();
+                    float? threshold = AimVisuals != null ? AimVisuals.ExtremeForceThreshold : (float?)null;
+                    AccuracyController.SetDragPowerMultiplier(overpowerRatio, threshold);
                 }
-                Debug.Log($"[PlayerInput] Shot cancelled — drag {dragMagnitude:F1} below minimum {MinDragToShoot}.");
-                return;
-            }
 
-            if (AccuracyController != null) AccuracyController.LockAccuracy();
+                if (AimVisuals != null)
+                {
+                    if (IsPuttingMode())
+                        AimVisuals.UpdatePuttingLine(dragMagnitude, overpowerRatio, transform.position, dragAngle);
+                    else
+                        AimVisuals.UpdateDragLine(dragMagnitude, overpowerRatio, transform.position);
+                }
+            }
+            // ── Finger/mouse released this frame ──────────────────────────────────
+            else if (Input.GetMouseButtonUp(0) && isDragging)
+            {
+                isDragging = false;
 
-            Vector3 launchVelocity;
-            if (IsPuttingMode())
-            {
-                launchVelocity = CalculatePuttingVelocity(dragVector);
-            }
-            else
-            {
-                if (AimVisuals == null || AimVisuals.ActiveTargetMarker == null) return;
-                launchVelocity = CalculateDeviatedShotVelocity(dragVector);
-            }
+                if (AimVisuals != null)
+                {
+                    AimVisuals.HideDragLine();
+                    AimVisuals.HideTrajectory();
+                }
 
-            if (launchVelocity.sqrMagnitude > 0.1f)
-            {
-                rb.WakeUp();
-                rb.AddForce(launchVelocity, ForceMode.VelocityChange);
-                GameStateManager.Instance.ChangeState(GameStateManager.GameState.Flight);
-            }
-            else
-            {
-                if (AccuracyController != null) AccuracyController.ResetLock();
+                Vector3 dragVector = dragStartPosition - Input.mousePosition;
+                float dragMagnitude = GetScaledDragMagnitude(dragVector);
+
+                if (dragMagnitude < MinDragToShoot)
+                {
+                    if (AccuracyController != null)
+                    {
+                        AccuracyController.SetDragPowerMultiplier(0f);
+                        AccuracyController.ResetLock();
+                    }
+                    Debug.Log($"[PlayerInput] Shot cancelled — drag {dragMagnitude:F1} below minimum {MinDragToShoot}.");
+                    return;
+                }
+
+                if (AccuracyController != null) AccuracyController.LockAccuracy();
+
+                Vector3 launchVelocity;
+                if (IsPuttingMode())
+                {
+                    launchVelocity = CalculatePuttingVelocity(dragVector);
+                }
+                else
+                {
+                    if (AimVisuals == null || AimVisuals.ActiveTargetMarker == null) return;
+                    launchVelocity = CalculateDeviatedShotVelocity(dragVector);
+                }
+
+                if (launchVelocity.sqrMagnitude > 0.1f)
+                {
+                    rb.WakeUp();
+                    rb.AddForce(launchVelocity, ForceMode.VelocityChange);
+                    GameStateManager.Instance.ChangeState(GameStateManager.GameState.Flight);
+                }
+                else
+                {
+                    if (AccuracyController != null) AccuracyController.ResetLock();
+                }
             }
         }
 
