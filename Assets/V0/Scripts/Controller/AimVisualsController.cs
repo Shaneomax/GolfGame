@@ -332,13 +332,17 @@ namespace GolfGame.Controllers
                 
             UpdateDragLineColor(activeColor);
 
-            // FIXED: Pull straight back relative to where we are aiming, not absolute world Z
-            Vector3 visualPullBackDir = -fixedAimDirection; 
-            
-            // Fallback just in case aim direction is completely zeroed out
-            if (visualPullBackDir.sqrMagnitude < 0.001f) 
+            // Make the drag line always point straight down the screen (towards the camera)
+            // so it doesn't look crooked when aiming left or right of the flag.
+            Vector3 visualPullBackDir = Vector3.back; 
+            if (mainCamera != null)
             {
-                visualPullBackDir = Vector3.back;
+                Vector3 camFwd = mainCamera.transform.forward;
+                camFwd.y = 0f;
+                if (camFwd.sqrMagnitude > 0.001f)
+                {
+                    visualPullBackDir = -camFwd.normalized;
+                }
             }
             
             // Push the starting point out by the radius so it doesn't sit inside the mesh

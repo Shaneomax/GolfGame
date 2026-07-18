@@ -278,7 +278,8 @@ namespace GolfGame.Controllers
         private Vector3 CalculatePuttingVelocity(Vector3 dragVector)
         {
             float dragMagnitude = Mathf.Clamp(GetScaledDragMagnitude(dragVector), 0f, MaxDragDistance);
-            float powerRatio = dragMagnitude / NormalDragDistance;
+            float distanceRatio = dragMagnitude / NormalDragDistance;
+            float speedMultiplier = Mathf.Sqrt(distanceRatio);
             
             Vector3 baseForwardDir = Vector3.forward;
             if (AimVisuals != null && AimVisuals.FlagTransform != null)
@@ -296,7 +297,7 @@ namespace GolfGame.Controllers
             float maxClubPower = CurrentClub != null ? CurrentClub.Power : 15f;
             float maxSpeed = maxClubPower * PowerScale * 0.35f; 
             
-            return finalAimDir * (maxSpeed * powerRatio);
+            return finalAimDir * (maxSpeed * speedMultiplier);
         }
 
         /// <summary>
@@ -397,7 +398,20 @@ namespace GolfGame.Controllers
         private Vector3 CalculateDeviatedShotVelocity(Vector3 dragVector)
         {
             float dragMagnitude = Mathf.Clamp(GetScaledDragMagnitude(dragVector), 0f, MaxDragDistance);
-            float powerRatio = dragMagnitude / NormalDragDistance;
+            
+            float distanceRatio = 1f;
+            if (dragMagnitude <= NormalDragDistance)
+            {
+                distanceRatio = dragMagnitude / NormalDragDistance;
+            }
+            else
+            {
+                float overpower = Mathf.InverseLerp(NormalDragDistance, MaxDragDistance, dragMagnitude);
+                // Max 25% extra distance for full red drag instead of 2.5x distance
+                distanceRatio = Mathf.Lerp(1.0f, 1.25f, overpower);
+            }
+            // Sqrt is used because distance scales with velocity squared
+            float speedMultiplier = Mathf.Sqrt(distanceRatio);
 
             Vector3 toTarget = AimVisuals.ActiveTargetMarker.transform.position - transform.position;
             Vector3 flatDirection = new Vector3(toTarget.x, 0f, toTarget.z).normalized;
@@ -419,7 +433,7 @@ namespace GolfGame.Controllers
 
             Vector3 preciseVelocity = CalculateVelocityToHitTarget(AimVisuals.ActiveTargetMarker.transform.position);
             
-            float speed = preciseVelocity.magnitude * powerRatio * distanceMultiplier;
+            float speed = preciseVelocity.magnitude * speedMultiplier * distanceMultiplier;
 
             return launchDir * speed;
         }
