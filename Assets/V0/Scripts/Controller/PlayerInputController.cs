@@ -362,14 +362,16 @@ namespace GolfGame.Controllers
                 Vector3 dragVector = dragStartPosition - Input.mousePosition;
                 float dragMagnitude = GetScaledDragMagnitude(dragVector);
 
-                if (dragMagnitude < MinDragToShoot)
+                float effectiveMinDrag = IsPuttingMode() ? 0.1f : MinDragToShoot;
+
+                if (dragMagnitude < effectiveMinDrag)
                 {
                     if (AccuracyController != null)
                     {
                         AccuracyController.SetDragPowerMultiplier(0f);
                         AccuracyController.ResetLock();
                     }
-                    Debug.Log($"[PlayerInput] Shot cancelled — drag {dragMagnitude:F1} below minimum {MinDragToShoot}.");
+                    Debug.Log($"[PlayerInput] Shot cancelled — drag {dragMagnitude:F1} below minimum {effectiveMinDrag}.");
                     return;
                 }
 
@@ -386,7 +388,9 @@ namespace GolfGame.Controllers
                     launchVelocity = CalculateDeviatedShotVelocity(dragVector);
                 }
 
-                if (launchVelocity.sqrMagnitude > 0.1f)
+                // Allow tiny launch velocities when putting, otherwise require at least 0.1f sqrMagnitude
+                float minLaunchVelocitySqr = IsPuttingMode() ? 0.001f : 0.1f;
+                if (launchVelocity.sqrMagnitude > minLaunchVelocitySqr)
                 {
                     LastLaunchPosition = transform.position;
                     rb.WakeUp();
