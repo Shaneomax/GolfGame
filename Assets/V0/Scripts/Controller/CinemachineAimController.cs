@@ -282,28 +282,28 @@ namespace GolfGame.Controllers
         /// Instantly positions the aim camera behind the ball looking toward the flag
         /// (used when entering Aiming state while putting).
         /// </summary>
-        private void SnapAimCameraForPutting()
-        {
-            Transform flag = ballInput.AimVisuals.FlagTransform;
+        // private void SnapAimCameraForPutting()
+        // {
+        //     Transform flag = ballInput.AimVisuals.FlagTransform;
 
-            // Orient the anchor toward the flag
-            if (AimTargetAnchor != null)
-            {
-                AimTargetAnchor.position = ballTransform.position;
-                Vector3 toFlag = GetHorizontalDirection(ballTransform.position, flag.position);
-                if (toFlag.sqrMagnitude > 0.001f)
-                    AimTargetAnchor.rotation = Quaternion.LookRotation(toFlag);
-            }
+        //     // Orient the anchor toward the flag
+        //     if (AimTargetAnchor != null)
+        //     {
+        //         AimTargetAnchor.position = ballTransform.position;
+        //         Vector3 toFlag = GetHorizontalDirection(ballTransform.position, flag.position);
+        //         if (toFlag.sqrMagnitude > 0.001f)
+        //             AimTargetAnchor.rotation = Quaternion.LookRotation(toFlag);
+        //     }
 
-            // Snap camera (no lerp on state entry)
-            Vector3 flagDir = GetHorizontalDirection(ballTransform.position, flag.position);
-            if (flagDir.sqrMagnitude < 0.001f) flagDir = Vector3.forward;
+        //     // Snap camera (no lerp on state entry)
+        //     Vector3 flagDir = GetHorizontalDirection(ballTransform.position, flag.position);
+        //     if (flagDir.sqrMagnitude < 0.001f) flagDir = Vector3.forward;
 
-            AimCamera.transform.position = ballTransform.position
-                - (flagDir * PuttingCameraDistance)
-                + (Vector3.up * PuttingCameraHeight);
-            AimCamera.transform.LookAt(Vector3.Lerp(ballTransform.position, flag.position, 0.15f));
-        }
+        //     AimCamera.transform.position = ballTransform.position
+        //         - (flagDir * PuttingCameraDistance)
+        //         + (Vector3.up * PuttingCameraHeight);
+        //     AimCamera.transform.LookAt(Vector3.Lerp(ballTransform.position, flag.position, 0.15f));
+        // }
 
         /// <summary>
         /// Instantly positions the aim camera behind the ball looking toward the target marker
@@ -476,24 +476,24 @@ namespace GolfGame.Controllers
         /// <summary>
         /// Smoothly moves the Aim camera behind the ball looking toward the flag while putting.
         /// </summary>
-        private void UpdateAimCameraForPutting()
-        {
-            Transform flag    = ballInput.AimVisuals.FlagTransform;
-            Vector3   flagDir = GetHorizontalDirection(ballTransform.position, flag.position);
-            if (flagDir.sqrMagnitude < 0.001f) flagDir = Vector3.forward;
+        // private void UpdateAimCameraForPutting()
+        // {
+        //     Transform flag    = ballInput.AimVisuals.FlagTransform;
+        //     Vector3   flagDir = GetHorizontalDirection(ballTransform.position, flag.position);
+        //     if (flagDir.sqrMagnitude < 0.001f) flagDir = Vector3.forward;
 
-            Vector3 desiredPos = ballTransform.position
-                - (flagDir * PuttingCameraDistance)
-                + (Vector3.up * PuttingCameraHeight);
+        //     Vector3 desiredPos = ballTransform.position
+        //         - (flagDir * PuttingCameraDistance)
+        //         + (Vector3.up * PuttingCameraHeight);
 
-            AimCamera.transform.position = Vector3.Lerp(
-                AimCamera.transform.position,
-                desiredPos,
-                Time.deltaTime * PuttingCameraFollowSpeed
-            );
+        //     AimCamera.transform.position = Vector3.Lerp(
+        //         AimCamera.transform.position,
+        //         desiredPos,
+        //         Time.deltaTime * PuttingCameraFollowSpeed
+        //     );
 
-            AimCamera.transform.LookAt(Vector3.Lerp(ballTransform.position, flag.position, 0.15f));
-        }
+        //     AimCamera.transform.LookAt(Vector3.Lerp(ballTransform.position, flag.position, 0.15f));
+        // }
 
         /// <summary>
         /// Smoothly moves the Aim camera behind the ball looking toward the target marker

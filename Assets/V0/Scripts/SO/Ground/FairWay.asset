@@ -15,13 +15,15 @@ MonoBehaviour:
   GroundName: FairWay
   GroundTag: Fairway
   IsNiceOn: 0
+  IsWaterHazard: 0
   LinearDrag: 0
   AngularDrag: 0.05
   MaxBounces: 3
-  FirstBounceImpactScale: 1
-  FirstBounceForwardKill: 0.25
-  ForwardToBounceConversion: 0.25
-  BounceDecayRatio: 0.3
-  ForwardRetentionPerBounce: 1
+  FirstBounceImpactScale: 1.1
+  FirstBounceForwardKill: 0.5
+  ForwardToBounceConversion: 0.28
+  BounceDecayRatio: 0.5
+  ForwardRetentionPerBounce: 0.8
   UseExtraRoll: 0
   ExtraRollFactor: 0.5
+  PowerDebuff: 0
