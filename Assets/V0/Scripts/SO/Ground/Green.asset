@@ -15,6 +15,7 @@ MonoBehaviour:
   GroundName: Green
   GroundTag: Green
   IsNiceOn: 0
+  IsWaterHazard: 0
   LinearDrag: 0
   AngularDrag: 0.05
   MaxBounces: 2
@@ -25,3 +26,4 @@ MonoBehaviour:
   ForwardRetentionPerBounce: 0.5
   UseExtraRoll: 1
   ExtraRollFactor: 0.4
+  PowerDebuff: 0.2

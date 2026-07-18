@@ -14,6 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GolfGame.Data.GroundData
   GroundName: Bunker
   GroundTag: Bunker
+  IsNiceOn: 0
+  IsWaterHazard: 0
   LinearDrag: 1
   AngularDrag: 0.05
   MaxBounces: 3
@@ -22,4 +24,6 @@ MonoBehaviour:
   ForwardToBounceConversion: 0
   BounceDecayRatio: 0
   ForwardRetentionPerBounce: 0
-  RollFactor: 0.965
+  UseExtraRoll: 0
+  ExtraRollFactor: 0.5
+  PowerDebuff: 0.35

@@ -98,7 +98,7 @@ namespace GolfGame.Controllers
                 dynamicFriction = 0.6f,
                 staticFriction = 0.6f,
                 bounceCombine = PhysicsMaterialCombine.Minimum,
-                frictionCombine = PhysicsMaterialCombine.Multiply
+                frictionCombine = PhysicsMaterialCombine.Multiply 
             };
             ballCollider.material = bounceMat;
             if (rb != null) rb.maxAngularVelocity = 150f; 
@@ -329,6 +329,7 @@ namespace GolfGame.Controllers
             vel.y = lastBounceUpVelocity;
 
             rb.linearVelocity = vel;
+
         }
 
         private System.Collections.IEnumerator KillBounce()

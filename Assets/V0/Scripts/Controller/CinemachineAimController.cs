@@ -97,6 +97,14 @@ namespace GolfGame.Controllers
         public float TouchPanSpeed  = 0.05f;
         public float TouchZoomSpeed = 0.05f;
 
+        [Header("Setup Camera Boundaries")]
+        [Tooltip("Enable to restrict how far the camera can pan.")]
+        public bool UsePanBoundaries = true;
+        public float MinPanX = -200f;
+        public float MaxPanX = 200f;
+        public float MinPanZ = -200f;
+        public float MaxPanZ = 200f;
+
         // ─────────────────────────────────────────────────────────────
         // Private – Ball references
         // ─────────────────────────────────────────────────────────────
@@ -421,7 +429,16 @@ namespace GolfGame.Controllers
                 {
                     Vector3 panMove = (camRight   * -touch.deltaPosition.x
                                     + camForward * -touch.deltaPosition.y) * TouchPanSpeed;
-                    SetupCamera.transform.position += panMove;
+                    
+                    Vector3 newPos = SetupCamera.transform.position + panMove;
+                    
+                    if (UsePanBoundaries && ballTransform != null)
+                    {
+                        newPos.x = Mathf.Clamp(newPos.x, ballTransform.position.x + MinPanX, ballTransform.position.x + MaxPanX);
+                        newPos.z = Mathf.Clamp(newPos.z, ballTransform.position.z + MinPanZ, ballTransform.position.z + MaxPanZ);
+                    }
+                    
+                    SetupCamera.transform.position = newPos;
                 }
             }
             else if (Input.touchCount == 2)
