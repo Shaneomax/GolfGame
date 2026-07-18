@@ -132,6 +132,23 @@ namespace GolfGame.Controllers
         {
             yield return new WaitForSeconds(2f);
             
+            if (currentGround != null && currentGround.IsWaterHazard)
+            {
+                PlayerInputController input = GetComponent<PlayerInputController>();
+                if (input != null)
+                {
+                    transform.position = input.LastLaunchPosition;
+                    rb.linearVelocity = Vector3.zero;
+                    rb.angularVelocity = Vector3.zero;
+                }
+                
+                if (GameStateManager.Instance != null)
+                {
+                    GameStateManager.Instance.ChangeState(GameStateManager.GameState.Setup);
+                }
+                yield break;
+            }
+
             if (GameStateManager.Instance != null)
             {
                 if (currentGround != null && currentGround.IsNiceOn)

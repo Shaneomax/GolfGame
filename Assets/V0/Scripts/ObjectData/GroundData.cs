@@ -12,6 +12,9 @@ namespace GolfGame.Data
         [Tooltip("True if this is a putting green/NiceOn surface.")]
         public bool IsNiceOn = false;
 
+        [Tooltip("True if this is water. The ball will reset to its previous location.")]
+        public bool IsWaterHazard = false;
+
         [Header("Friction & Drag")]
         [Tooltip("Linear drag applied while rolling/moving through this ground type.")]
         public float LinearDrag = 0f;
@@ -49,5 +52,10 @@ namespace GolfGame.Data
         [Tooltip("0 = Ball stops instantly. 0.5 = Natural Unity friction. 1 = Ball rolls infinitely without stopping.")]
         [Range(0f, 1f)]
         public float ExtraRollFactor = 0.5f;
+
+        [Header("Debuffs")]
+        [Tooltip("Reduces the maximum launch power of the club. (e.g., 0.05 = 5% power reduction in bunkers).")]
+        [Range(0f, 1f)]
+        public float PowerDebuff = 0f;
     }
 }

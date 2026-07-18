@@ -49,6 +49,7 @@ namespace GolfGame.Controllers
         public bool IsDraggingTarget => isDraggingTarget;
         public GameObject ActiveTargetMarker => AimVisuals != null ? AimVisuals.ActiveTargetMarker : null;
         public Vector3 FixedAimDirection => AimVisuals != null ? AimVisuals.FixedAimDirection : Vector3.forward;
+        public Vector3 LastLaunchPosition { get; private set; }
 
         private void Awake()
         {
@@ -150,7 +151,8 @@ namespace GolfGame.Controllers
         private float CalculateMaxRange()
         {
             float clubPower = CurrentClub != null ? CurrentClub.Power : 15f;
-            float v = clubPower * PowerScale; 
+            float debuff = PhysicsController != null && PhysicsController.CurrentGround != null ? PhysicsController.CurrentGround.PowerDebuff : 0f;
+            float v = clubPower * PowerScale * (1f - debuff); 
             float g = Mathf.Abs(Physics.gravity.y);
             float theta = DefaultLoftAngle * Mathf.Deg2Rad;
             float range = (v * v * Mathf.Sin(2f * theta)) / g;
@@ -261,8 +263,9 @@ namespace GolfGame.Controllers
             if (denominator <= 0.001f || d <= 0.001f) return horizontalDiff.normalized * 5f + Vector3.up * 2f;
 
             float speed = (d / Mathf.Cos(theta)) * Mathf.Sqrt(g / denominator);
-            float maxClubPower = CurrentClub != null ? CurrentClub.Power : 15f;
-            float maxSpeed = maxClubPower * PowerScale;
+            float clubPower = CurrentClub != null ? CurrentClub.Power : 15f;
+            float debuff = PhysicsController != null && PhysicsController.CurrentGround != null ? PhysicsController.CurrentGround.PowerDebuff : 0f;
+            float maxSpeed = clubPower * PowerScale * (1f - debuff);
             speed = Mathf.Min(speed, maxSpeed);
 
             Vector3 flatDirection = horizontalDiff.normalized;
@@ -294,8 +297,9 @@ namespace GolfGame.Controllers
             // Apply the slingshot rotation to the final launch velocity
             Vector3 finalAimDir = Quaternion.Euler(0f, dragAngle, 0f) * baseForwardDir;
 
+            float debuff = PhysicsController != null && PhysicsController.CurrentGround != null ? PhysicsController.CurrentGround.PowerDebuff : 0f;
             float maxClubPower = CurrentClub != null ? CurrentClub.Power : 15f;
-            float maxSpeed = maxClubPower * PowerScale * 0.35f; 
+            float maxSpeed = maxClubPower * PowerScale * 0.35f * (1f - debuff); 
             
             return finalAimDir * (maxSpeed * speedMultiplier);
         }
@@ -384,6 +388,7 @@ namespace GolfGame.Controllers
 
                 if (launchVelocity.sqrMagnitude > 0.1f)
                 {
+                    LastLaunchPosition = transform.position;
                     rb.WakeUp();
                     rb.AddForce(launchVelocity, ForceMode.VelocityChange);
                     GameStateManager.Instance.ChangeState(GameStateManager.GameState.Flight);
