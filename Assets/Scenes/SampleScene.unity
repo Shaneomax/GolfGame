@@ -17301,7 +17301,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1958071550860830986, guid: 4c347dec573e31448b9db8046ebf80ea, type: 3}
       propertyPath: MinPanX
-      value: -200
+      value: -250
       objectReference: {fileID: 0}
     - target: {fileID: 1958071550860830986, guid: 4c347dec573e31448b9db8046ebf80ea, type: 3}
       propertyPath: MinPanZ

@@ -577,13 +577,13 @@ MonoBehaviour:
       m_Bits: 256
     SurfaceData: {fileID: 11400000, guid: 821f38db0370616448d681232df77a27, type: 2}
   TerrainTextureMappings:
-  - TextureIndex: 1
-    SurfaceData: {fileID: 11400000, guid: 02b0dd1f2fc066140a151eb01b0b1e97, type: 2}
-  - TextureIndex: 33
-    SurfaceData: {fileID: 11400000, guid: f6b66d2a82130a541af7d53fb3ee580e, type: 2}
   - TextureIndex: 0
-    SurfaceData: {fileID: 11400000, guid: bcfe372e8eb0fa342a4457e3d4b32c6d, type: 2}
+    SurfaceData: {fileID: 11400000, guid: 02b0dd1f2fc066140a151eb01b0b1e97, type: 2}
   - TextureIndex: 2
+    SurfaceData: {fileID: 11400000, guid: f6b66d2a82130a541af7d53fb3ee580e, type: 2}
+  - TextureIndex: 1
+    SurfaceData: {fileID: 11400000, guid: bcfe372e8eb0fa342a4457e3d4b32c6d, type: 2}
+  - TextureIndex: 3
     SurfaceData: {fileID: 11400000, guid: 821f38db0370616448d681232df77a27, type: 2}
 --- !u!1 &9168367827328779700
 GameObject:
