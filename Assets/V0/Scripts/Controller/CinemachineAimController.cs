@@ -306,41 +306,6 @@ namespace GolfGame.Controllers
             }
         }
 
-        // ─────────────────────────────────────────────────────────────
-        // Aim camera – snap on state entry
-        // ─────────────────────────────────────────────────────────────
-
-        /// <summary>
-        /// Instantly positions the aim camera behind the ball looking toward the flag
-        /// (used when entering Aiming state while putting).
-        /// </summary>
-        // private void SnapAimCameraForPutting()
-        // {
-        //     Transform flag = ballInput.AimVisuals.FlagTransform;
-
-        //     // Orient the anchor toward the flag
-        //     if (AimTargetAnchor != null)
-        //     {
-        //         AimTargetAnchor.position = ballTransform.position;
-        //         Vector3 toFlag = GetHorizontalDirection(ballTransform.position, flag.position);
-        //         if (toFlag.sqrMagnitude > 0.001f)
-        //             AimTargetAnchor.rotation = Quaternion.LookRotation(toFlag);
-        //     }
-
-        //     // Snap camera (no lerp on state entry)
-        //     Vector3 flagDir = GetHorizontalDirection(ballTransform.position, flag.position);
-        //     if (flagDir.sqrMagnitude < 0.001f) flagDir = Vector3.forward;
-
-        //     AimCamera.transform.position = ballTransform.position
-        //         - (flagDir * PuttingCameraDistance)
-        //         + (Vector3.up * PuttingCameraHeight);
-        //     AimCamera.transform.LookAt(Vector3.Lerp(ballTransform.position, flag.position, 0.15f));
-        // }
-
-        /// <summary>
-        /// Instantly positions the aim camera behind the ball looking toward the target marker
-        /// (used when entering Aiming state for a normal shot).
-        /// </summary>
         private void SnapAimCameraForNormalShot()
         {
             Transform flag = ballInput?.AimVisuals?.FlagTransform;
