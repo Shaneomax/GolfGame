@@ -16968,8 +16968,10 @@ GameObject:
   - component: {fileID: 1991703957}
   - component: {fileID: 1991703959}
   - component: {fileID: 1991703958}
+  - component: {fileID: 1991703960}
+  - component: {fileID: 1991703961}
   m_Layer: 5
-  m_Name: MovingImage
+  m_Name: MovingObject
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -17032,6 +17034,30 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1991703956}
   m_CullTransparentMesh: 1
+--- !u!114 &1991703960
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1991703956}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5938336000520c48b7a314b9fe5895f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ClampInsideParent
+--- !u!114 &1991703961
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1991703956}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5a6e9370bad3d1448996455f0bdcc52d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DragDropUI
 --- !u!1001 &1999695121
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -17870,11 +17896,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 2123326119}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3312d7739989d2b4e91e6319e9a96d76, type: 3}
+  m_Script: {fileID: 11500000, guid: 31a19414c41e5ae4aae2af33fee712f6, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.RectMask2D
-  m_Padding: {x: 0, y: 0, z: 0, w: 0}
-  m_Softness: {x: 0, y: 0}
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Mask
+  m_ShowMaskGraphic: 1
 --- !u!1001 &386734821824968597
 PrefabInstance:
   m_ObjectHideFlags: 0
