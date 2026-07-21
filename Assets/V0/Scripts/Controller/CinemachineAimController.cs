@@ -1,5 +1,6 @@
 using UnityEngine;
 using Unity.Cinemachine;
+using DG.Tweening;
 
 namespace GolfGame.Controllers
 {
@@ -83,12 +84,32 @@ namespace GolfGame.Controllers
         [Range(0f, 1f)]
         public float RollCameraVelocityInfluence = 0.85f;
 
+        [Header("Roll Camera Zoom-In After Bounce")]
+        [Tooltip("How fast the roll camera zooms in toward the ball.")]
+        public float RollZoomSpeed = 0.5f;
+
+        [Tooltip("The final close-up distance behind the ball.")]
+        public float RollZoomTargetDistance = 2f;
+
+        [Tooltip("The final close-up height above the ball.")]
+        public float RollZoomTargetHeight = 1f;
+
         // ─────────────────────────────────────────────────────────────
         // Inspector – Landing Camera (Planted) Settings
         // ─────────────────────────────────────────────────────────────
         [Header("Landing Camera (Planted) Settings")]
         [Tooltip("Offset relative to the landing spot. X=Sideways, Y=Up, Z=Forward")]
-        public Vector3 LandingCameraPlantedOffset = new Vector3(20f, 5f, 20f);
+        public Vector3 LandingCameraPlantedOffset = new Vector3(30f, 5f, 20f);
+
+        [Header("Landing Camera Bounce Zoom")]
+        [Tooltip("How fast the landing camera zooms toward the ball after the first bounce.")]
+        public float LandingZoomSpeed = 0.15f;
+
+        [Tooltip("The closest the landing camera will get to the ball during zoom.")]
+        public float LandingZoomMinDistance = 10f;
+
+        [Tooltip("How high above the ball the camera stays while zooming in.")]
+        public float LandingZoomHeight = 5f;
 
         // ─────────────────────────────────────────────────────────────
         // Inspector – Setup Camera Touch Controls (Mobile Only)
@@ -134,6 +155,15 @@ namespace GolfGame.Controllers
         // ─────────────────────────────────────────────────────────────
         private Vector3 _rollCamVelocityRef     = Vector3.zero; // SmoothDamp velocity
         private Vector3 _smoothedRollDir        = Vector3.forward; // smoothed travel direction
+        private float   _currentRollDistance;   // zoom state: current distance behind ball
+        private float   _currentRollHeight;     // zoom state: current height above ball
+
+        // ─────────────────────────────────────────────────────────────
+        // Private – Landing Bounce Zoom state
+        // ─────────────────────────────────────────────────────────────
+        private Vector3 _bounceStartCamPos;
+        private float   _bounceZoomProgress;
+        private Tweener _bounceZoomTween;
 
         // ─────────────────────────────────────────────────────────────
         // Helpers
@@ -178,7 +208,9 @@ namespace GolfGame.Controllers
 
                 case GameStateManager.GameState.Flight:
                     HandleFlightSubStateTransitions();
-                    if (_flightSubState == FlightState_Roll)
+                    if (_flightSubState == FlightState_Bounce)
+                        HandleLandingBounceZoom();
+                    else if (_flightSubState == FlightState_Roll)
                         HandleFlightRollUpdate();
                     break;
             }
@@ -592,7 +624,7 @@ namespace GolfGame.Controllers
             TryRefineLandingPrediction();
 
             float currentProgress = CalculateShotProgress();
-            bool  hasHitGround    = ballInput.PhysicsController.CurrentGround != null;
+            bool  hasHitGround    = ballInput.PhysicsController.BounceCount > 0;
 
             // ── Transition 1: Launch → Descent ──────────────────────────────────
             // Activates the landing camera early (55% progress) so it's already in
@@ -606,6 +638,16 @@ namespace GolfGame.Controllers
             else if (_flightSubState == FlightState_Descent && hasHitGround)
             {
                 _flightSubState = FlightState_Bounce;
+                if (LandingCamera != null)
+                {
+                    _bounceStartCamPos = LandingCamera.transform.position;
+                    _bounceZoomProgress = 0f;
+                    _bounceZoomTween?.Kill();
+                    // LandingZoomSpeed is converted to duration (e.g. 0.15 speed = 6.6 seconds)
+                    float duration = 1f / Mathf.Max(0.01f, LandingZoomSpeed);
+                    _bounceZoomTween = DOVirtual.Float(0f, 1f, duration, v => _bounceZoomProgress = v)
+                        .SetEase(Ease.InOutSine);
+                }
             }
             // ── Transition 3: Bounce → Roll ──────────────────────────────────────
             // Triggers once the ball's speed drops, indicating big bounces are over.
@@ -640,6 +682,33 @@ namespace GolfGame.Controllers
         }
 
         /// <summary>
+        /// After the first bounce, smoothly zooms the landing camera toward the ball
+        /// for a cinematic close-up while it bounces and settles.
+        /// </summary>
+        private void HandleLandingBounceZoom()
+        {
+            if (LandingCamera == null || ballTransform == null) return;
+
+            // Use the original fixed shot directions to maintain a strict side-view angle
+            Vector3 shotDir   = GetHorizontalDirection(_shotStartPosition, _shotTargetPosition).normalized;
+            Vector3 shotRight = Vector3.Cross(Vector3.up, shotDir).normalized;
+
+            // Calculate ideal tracking position: alongside the ball, but zoomed in
+            Vector3 desiredPos = ballTransform.position
+                + (shotRight * LandingZoomMinDistance)
+                + (Vector3.up * LandingZoomHeight);
+
+            // Smoothly blend from the exact starting position to the tracking position using DOTween's progress
+            // This guarantees a smooth start with zero jumping, regardless of where the ball bounced
+            LandingCamera.transform.position = Vector3.Lerp(
+                _bounceStartCamPos,
+                desiredPos,
+                _bounceZoomProgress
+            );
+        }
+
+
+        /// <summary>
         /// Switches from the Landing camera to the Roll camera once the ball settles.
         /// </summary>
         private void TransitionToRollCamera()
@@ -656,10 +725,12 @@ namespace GolfGame.Controllers
             RollCamera.LookAt   = ballTransform;  // Cinemachine still handles look-at damping
 
             // Seed position behind ball so there is no pop on first frame
-            _rollCamVelocityRef = Vector3.zero;
+            _rollCamVelocityRef    = Vector3.zero;
+            _currentRollDistance   = RollCameraDistance;
+            _currentRollHeight     = RollCameraHeight;
             RollCamera.transform.position = ballTransform.position
-                - (_smoothedRollDir * RollCameraDistance)
-                + (Vector3.up       * RollCameraHeight);
+                - (_smoothedRollDir * _currentRollDistance)
+                + (Vector3.up       * _currentRollHeight);
         }
 
         /// <summary>
@@ -699,12 +770,16 @@ namespace GolfGame.Controllers
             );
             if (_smoothedRollDir.sqrMagnitude < 0.001f) _smoothedRollDir = shotDir;
 
-            // ── 3. Compute desired camera position behind ball ─────────────────
-            Vector3 desiredPos = ballTransform.position
-                - (_smoothedRollDir * RollCameraDistance)
-                + (Vector3.up       * RollCameraHeight);
+            // ── 3. Slowly zoom in by reducing distance and height ───────────
+            _currentRollDistance = Mathf.Lerp(_currentRollDistance, RollZoomTargetDistance, Time.deltaTime * RollZoomSpeed);
+            _currentRollHeight  = Mathf.Lerp(_currentRollHeight,  RollZoomTargetHeight,  Time.deltaTime * RollZoomSpeed);
 
-            // ── 4. SmoothDamp to desired position (gives organic inertia lag) ──
+            // ── 4. Compute desired camera position behind ball ─────────────────
+            Vector3 desiredPos = ballTransform.position
+                - (_smoothedRollDir * _currentRollDistance)
+                + (Vector3.up       * _currentRollHeight);
+
+            // ── 5. SmoothDamp to desired position (gives organic inertia lag) ──
             RollCamera.transform.position = Vector3.SmoothDamp(
                 RollCamera.transform.position,
                 desiredPos,
@@ -712,7 +787,7 @@ namespace GolfGame.Controllers
                 1f / Mathf.Max(RollCameraFollowSpeed, 0.01f)
             );
 
-            // ── 5. Keep AimTargetAnchor in sync (other systems may read it) ────
+            // ── 6. Keep AimTargetAnchor in sync (other systems may read it) ────
             if (AimTargetAnchor != null)
             {
                 AimTargetAnchor.position = ballTransform.position;
