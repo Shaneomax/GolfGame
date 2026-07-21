@@ -38,6 +38,23 @@ namespace GolfGame.Controllers
         [Header("Terrain Painted Texture Setup")]
         public List<TerrainTextureMapping> TerrainTextureMappings;
 
+        [Header("Spin Modifiers")]
+        [Tooltip("Max multiplier to forward bounce speed when full top spin is applied (e.g. 1.2x)")]
+        public float MaxTopSpinForwardMultiplier = 1.3f;
+        [Tooltip("Min multiplier to forward bounce speed when full back spin is applied (e.g. 0.3x)")]
+        public float MaxBackSpinForwardMultiplier = 0.3f;
+        [Tooltip("How much lateral velocity is added on bounce with full side spin.")]
+        public float MaxSideSpinVelocity = 3.0f;
+        [Tooltip("Extra vertical bounce velocity added when full backspin is applied to kill forward momentum.")]
+        public float MaxBackSpinUpwardBonus = 2.0f;
+
+        private Vector2 _appliedSpin = Vector2.zero;
+
+        public void SetAppliedSpin(Vector2 spin)
+        {
+            _appliedSpin = spin;
+        }
+
         private Rigidbody rb;
         private Collider ballCollider;
         private BallData currentBall;
@@ -307,10 +324,32 @@ namespace GolfGame.Controllers
                                    + (forwardSpeed * currentGround.ForwardToBounceConversion);
 
             float newForwardSpeed = forwardSpeed * currentGround.FirstBounceForwardKill;
+
+            // --- APPLY SPIN ---
+            // Top/Back spin (Y)
+            if (_appliedSpin.y > 0) 
+            {
+                // Top spin: increase forward speed
+                newForwardSpeed *= Mathf.Lerp(1f, MaxTopSpinForwardMultiplier, _appliedSpin.y);
+            }
+            else if (_appliedSpin.y < 0)
+            {
+                // Back spin: decrease forward speed, slightly increase bounce height to stop it
+                newForwardSpeed *= Mathf.Lerp(1f, MaxBackSpinForwardMultiplier, Mathf.Abs(_appliedSpin.y));
+                bounceUpVelocity += MaxBackSpinUpwardBonus * Mathf.Abs(_appliedSpin.y);
+            }
             
             Vector3 newHorizontal = horizontalVel.sqrMagnitude > 0.001f
                 ? horizontalVel.normalized * newForwardSpeed
                 : Vector3.zero;
+
+            // Side spin (X)
+            if (Mathf.Abs(_appliedSpin.x) > 0.01f && horizontalVel.sqrMagnitude > 0.001f)
+            {
+                Vector3 rightDir = Vector3.Cross(Vector3.up, horizontalVel.normalized).normalized;
+                // Add lateral velocity based on side spin
+                newHorizontal += rightDir * (_appliedSpin.x * MaxSideSpinVelocity);
+            }
 
             lastBounceUpVelocity = bounceUpVelocity;
             rb.linearVelocity = new Vector3(newHorizontal.x, bounceUpVelocity, newHorizontal.z);
@@ -324,8 +363,31 @@ namespace GolfGame.Controllers
             lastBounceUpVelocity *= currentGround.BounceDecayRatio;
 
             Vector3 vel = rb.linearVelocity;
-            vel.x *= currentGround.ForwardRetentionPerBounce;
-            vel.z *= currentGround.ForwardRetentionPerBounce;
+            Vector3 horizontalVel = new Vector3(vel.x, 0f, vel.z);
+
+            float forwardRetention = currentGround.ForwardRetentionPerBounce;
+
+            // Apply Top/Back spin to subsequent bounces as well (scaled down)
+            if (_appliedSpin.y > 0) 
+            {
+                forwardRetention *= Mathf.Lerp(1f, MaxTopSpinForwardMultiplier, _appliedSpin.y);
+            }
+            else if (_appliedSpin.y < 0)
+            {
+                forwardRetention *= Mathf.Lerp(1f, MaxBackSpinForwardMultiplier, Mathf.Abs(_appliedSpin.y));
+            }
+
+            Vector3 newHorizontal = horizontalVel * forwardRetention;
+
+            // Apply Side spin to subsequent bounces (scaled down)
+            if (Mathf.Abs(_appliedSpin.x) > 0.01f && horizontalVel.sqrMagnitude > 0.001f)
+            {
+                Vector3 rightDir = Vector3.Cross(Vector3.up, horizontalVel.normalized).normalized;
+                newHorizontal += rightDir * (_appliedSpin.x * MaxSideSpinVelocity * 0.5f); // less side spin on later bounces
+            }
+
+            vel.x = newHorizontal.x;
+            vel.z = newHorizontal.z;
             vel.y = lastBounceUpVelocity;
 
             rb.linearVelocity = vel;

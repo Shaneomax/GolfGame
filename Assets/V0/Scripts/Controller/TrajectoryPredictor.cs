@@ -47,14 +47,21 @@ namespace GolfGame.Controllers
             Vector3 position = startPosition;
             Vector3 velocity = launchVelocity;
             
-            // Dynamic check up to 500 steps (25 seconds of flight time)
-            int maxSteps = 500;
+            // Try to find Physics controller to get ground data and spin multipliers
+            BallPhysicsController physics = GetComponent<BallPhysicsController>();
+            if (physics == null || physics.DefaultGround == null) return;
+            
+            // Dynamic check up to 800 steps
+            int maxSteps = 800;
             if (pointsArray == null || pointsArray.Length < maxSteps)
             {
                 pointsArray = new Vector3[maxSteps];
             }
 
             int validSteps = 0;
+            int currentBounce = 0;
+            int maxBounces = 3; // Show up to 3 bounces
+            float lastBounceUpVelocity = 0f;
 
             for (int i = 0; i < maxSteps; i++)
             {
@@ -64,18 +71,75 @@ namespace GolfGame.Controllers
                 velocity += Physics.gravity * TimeStep;
                 position += velocity * TimeStep;
 
-                // Stop drawing when falling (velocity.y < 0) and height falls below targetHeight
-                if (velocity.y < 0f && position.y < targetHeight)
+                // Stop drawing when falling and hit ground
+                if (velocity.y < 0f && position.y <= targetHeight)
                 {
-                    // Add one final point exactly at the target height to touch the ground perfectly
-                    if (validSteps < maxSteps)
+                    // Clamp to ground perfectly
+                    position.y = targetHeight;
+                    pointsArray[validSteps - 1] = position;
+                    
+                    currentBounce++;
+
+                    if (currentBounce >= maxBounces)
                     {
-                        Vector3 finalPos = position;
-                        finalPos.y = targetHeight;
-                        pointsArray[validSteps] = finalPos;
-                        validSteps++;
+                        break; // Stop after max bounces
                     }
-                    break;
+
+                    // --- SIMULATE BOUNCE LOGIC ---
+                    Vector3 horizontalVel = new Vector3(velocity.x, 0f, velocity.z);
+                    float forwardSpeed = horizontalVel.magnitude;
+                    float impactDownSpeed = Mathf.Abs(velocity.y);
+
+                    float bounceUpVelocity = 0f;
+                    Vector3 newHorizontal = Vector3.zero;
+                    Vector2 appliedSpin = GolfGame.UI.SpinInputUI.GlobalCurrentSpin;
+
+                    if (currentBounce == 1)
+                    {
+                        bounceUpVelocity = (impactDownSpeed * physics.DefaultGround.FirstBounceImpactScale)
+                                         + (forwardSpeed * physics.DefaultGround.ForwardToBounceConversion);
+
+                        float newForwardSpeed = forwardSpeed * physics.DefaultGround.FirstBounceForwardKill;
+
+                        if (appliedSpin.y > 0)
+                            newForwardSpeed *= Mathf.Lerp(1f, physics.MaxTopSpinForwardMultiplier, appliedSpin.y);
+                        else if (appliedSpin.y < 0)
+                        {
+                            newForwardSpeed *= Mathf.Lerp(1f, physics.MaxBackSpinForwardMultiplier, Mathf.Abs(appliedSpin.y));
+                            bounceUpVelocity += physics.MaxBackSpinUpwardBonus * Mathf.Abs(appliedSpin.y);
+                        }
+
+                        newHorizontal = horizontalVel.sqrMagnitude > 0.001f ? horizontalVel.normalized * newForwardSpeed : Vector3.zero;
+
+                        if (Mathf.Abs(appliedSpin.x) > 0.01f && horizontalVel.sqrMagnitude > 0.001f)
+                        {
+                            Vector3 rightDir = Vector3.Cross(Vector3.up, horizontalVel.normalized).normalized;
+                            newHorizontal += rightDir * (appliedSpin.x * physics.MaxSideSpinVelocity);
+                        }
+                    }
+                    else
+                    {
+                        lastBounceUpVelocity *= physics.DefaultGround.BounceDecayRatio;
+                        bounceUpVelocity = lastBounceUpVelocity;
+
+                        float forwardRetention = physics.DefaultGround.ForwardRetentionPerBounce;
+
+                        if (appliedSpin.y > 0)
+                            forwardRetention *= Mathf.Lerp(1f, physics.MaxTopSpinForwardMultiplier, appliedSpin.y);
+                        else if (appliedSpin.y < 0)
+                            forwardRetention *= Mathf.Lerp(1f, physics.MaxBackSpinForwardMultiplier, Mathf.Abs(appliedSpin.y));
+
+                        newHorizontal = horizontalVel * forwardRetention;
+
+                        if (Mathf.Abs(appliedSpin.x) > 0.01f && horizontalVel.sqrMagnitude > 0.001f)
+                        {
+                            Vector3 rightDir = Vector3.Cross(Vector3.up, horizontalVel.normalized).normalized;
+                            newHorizontal += rightDir * (appliedSpin.x * physics.MaxSideSpinVelocity * 0.5f);
+                        }
+                    }
+
+                    lastBounceUpVelocity = bounceUpVelocity;
+                    velocity = new Vector3(newHorizontal.x, bounceUpVelocity, newHorizontal.z);
                 }
             }
 

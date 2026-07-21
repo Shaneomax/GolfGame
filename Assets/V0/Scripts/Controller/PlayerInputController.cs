@@ -1,4 +1,5 @@
 using UnityEngine;
+using GolfGame.Data;
 
 namespace GolfGame.Controllers
 {
@@ -33,9 +34,11 @@ namespace GolfGame.Controllers
         [Header("Dependencies")]
         public BallData CurrentBall;
         public ClubData CurrentClub;
-        public ShotAccuracyController AccuracyController;
-        public AimVisualsController AimVisuals;
+        public CinemachineAimController AimController;
         public BallPhysicsController PhysicsController;
+        public AimVisualsController AimVisuals;
+        public ShotAccuracyController AccuracyController;
+        public GolfGame.UI.SpinInputUI SpinInput;
 
         #endregion
 
@@ -64,6 +67,9 @@ namespace GolfGame.Controllers
                 
             if (PhysicsController == null)
                 PhysicsController = GetComponent<BallPhysicsController>();
+
+            // Subscribe to hide/disable input when spin dashboard is open
+            GolfGame.UI.GameplayUIController.OnSpinDashboardToggled += HandleSpinDashboardToggled;
         }
 
         private void Start()
@@ -89,6 +95,12 @@ namespace GolfGame.Controllers
                 GameStateManager.Instance.OnStateEnter -= OnStateEnter;
                 GameStateManager.Instance.OnStateExit -= OnStateExit;
             }
+            GolfGame.UI.GameplayUIController.OnSpinDashboardToggled -= HandleSpinDashboardToggled;
+        }
+
+        private void HandleSpinDashboardToggled(bool isOpen)
+        {
+            enabled = !isOpen;
         }
 
         public void ApplyBallData()
@@ -162,6 +174,8 @@ namespace GolfGame.Controllers
         private void Update()
         {
             if (GameStateManager.Instance == null) return;
+
+            // Block all main game input while the Spin Dashboard is open.
 
             var state = GameStateManager.Instance.CurrentState;
 
@@ -413,6 +427,12 @@ namespace GolfGame.Controllers
                     LastLaunchPosition = transform.position;
                     rb.WakeUp();
                     rb.AddForce(launchVelocity, ForceMode.VelocityChange);
+                    
+                    if (PhysicsController != null)
+                    {
+                        PhysicsController.SetAppliedSpin(GolfGame.UI.SpinInputUI.GlobalCurrentSpin);
+                    }
+
                     GameStateManager.Instance.ChangeState(GameStateManager.GameState.Flight);
                 }
                 else
