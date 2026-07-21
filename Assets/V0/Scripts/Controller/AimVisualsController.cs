@@ -6,6 +6,8 @@ namespace GolfGame.Controllers
     {
         [Header("Aim Settings")]
         public GameObject TargetMarkerPrefab;
+        [Tooltip("How far above the terrain surface the marker should float so it doesn't clip into the ground.")]
+        public float MarkerYOffset = 0.15f;
         public float MinTargetDistance = 3f;
         public float MaxAimAngle = 45f;
         public Transform FlagTransform;
@@ -213,14 +215,16 @@ namespace GolfGame.Controllers
 
                 Vector3 spawnPos = transform.position + fixedAimDirection * targetDistance;
     
-                // FIX: Snap the marker to the actual ground terrain instead of hardcoding 0f
-                if (Physics.Raycast(spawnPos + Vector3.up * 50f, Vector3.down, out RaycastHit hit, 100f))
+                // Snap the marker to the actual terrain surface + offset
+                if (Terrain.activeTerrain != null)
                 {
-                    spawnPos.y = hit.point.y;
+                    spawnPos.y = Terrain.activeTerrain.SampleHeight(spawnPos)
+                              + Terrain.activeTerrain.transform.position.y
+                              + MarkerYOffset;
                 }
                 else
                 {
-                    spawnPos.y = transform.position.y; // Fallback to ball height
+                    spawnPos.y = transform.position.y + MarkerYOffset;
                 }
                 
                 Debug.Log($"[DEBUG Spawn] Final Spawn Pos: {spawnPos}");
@@ -270,14 +274,16 @@ namespace GolfGame.Controllers
 
                 Vector3 newPos = transform.position + fixedAimDirection * targetDistance;
     
-                // FIX: Apply the same terrain-snapping fix here
-                if (Physics.Raycast(newPos + Vector3.up * 50f, Vector3.down, out RaycastHit hit, 100f))
+                // Snap to terrain surface + offset
+                if (Terrain.activeTerrain != null)
                 {
-                    newPos.y = hit.point.y;
+                    newPos.y = Terrain.activeTerrain.SampleHeight(newPos)
+                             + Terrain.activeTerrain.transform.position.y
+                             + MarkerYOffset;
                 }
                 else
                 {
-                    newPos.y = transform.position.y; // Fallback to ball height
+                    newPos.y = transform.position.y + MarkerYOffset;
                 }
                 
                 activeTargetMarker.transform.position = newPos;
@@ -303,7 +309,9 @@ namespace GolfGame.Controllers
             {
                 // NEW: Push the starting point out by the ball's radius
                 Vector3 edgeStartPos = transform.position + (launchVelocity.normalized * _ballRadius);
-                trajectoryPredictor.ShowTrajectory(edgeStartPos, launchVelocity, activeTargetMarker.transform.position.y);
+                // Subtracted MarkerYOffset so the trajectory line lands on the actual ground rather than on the floating marker height.
+                float groundY = activeTargetMarker.transform.position.y - MarkerYOffset;
+                trajectoryPredictor.ShowTrajectory(edgeStartPos, launchVelocity, groundY);
             }
         }
 

@@ -214,7 +214,14 @@ namespace GolfGame.Controllers
             {
                 Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
                 
-                Plane groundPlane = new Plane(Vector3.up, transform.position); 
+                // Get the current height of the marker to define the drag plane
+                float dragPlaneHeight = transform.position.y;
+                if (AimVisuals.ActiveTargetMarker != null)
+                {
+                    dragPlaneHeight = AimVisuals.ActiveTargetMarker.transform.position.y - AimVisuals.MarkerYOffset;
+                }
+                
+                Plane groundPlane = new Plane(Vector3.up, new Vector3(0f, dragPlaneHeight, 0f)); 
                 
                 if (groundPlane.Raycast(ray, out float enter))
                 {
@@ -234,7 +241,18 @@ namespace GolfGame.Controllers
                         float testDist = Mathf.Clamp(horizontalDiff.magnitude, AimVisuals.MinTargetDistance, maxRange);
                         
                         Vector3 testHitPoint = transform.position + testDir * testDist;
-                        testHitPoint.y = transform.position.y; 
+                        // Snap Y to terrain surface + offset (avoid Physics.Raycast here
+                        // because it can hit the marker's own collider and cause it to jump)
+                        if (Terrain.activeTerrain != null)
+                        {
+                            testHitPoint.y = Terrain.activeTerrain.SampleHeight(testHitPoint) 
+                                           + Terrain.activeTerrain.transform.position.y 
+                                           + AimVisuals.MarkerYOffset;
+                        }
+                        else
+                        {
+                            testHitPoint.y = transform.position.y + AimVisuals.MarkerYOffset;
+                        }
 
                         Vector3 viewportPos = mainCamera.WorldToViewportPoint(testHitPoint);
                         
