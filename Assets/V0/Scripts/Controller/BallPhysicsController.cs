@@ -446,6 +446,7 @@ namespace GolfGame.Controllers
             return maxIndex;
         }
 
+
         public GroundData GetGroundDataAtPosition(Vector3 position)
         {
             GroundData result = DefaultGround;

@@ -66,9 +66,8 @@ namespace GolfGame.UI
             SpinMarker.anchoredPosition = clampedPoint;
 
             // Calculate normalized spin (-1 to 1) based on the clamp radius.
-            // Swapping X and Y based on user feedback to match the correct axes!
             Vector2 rawSpin = clampedPoint / MaxRadius;
-            CurrentSpin = new Vector2(rawSpin.y, rawSpin.x);
+            CurrentSpin = rawSpin;
             GlobalCurrentSpin = CurrentSpin;
         }
 
