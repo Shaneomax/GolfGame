@@ -27,6 +27,13 @@ namespace GolfGame.Controllers
         [Tooltip("Maximum sideways deviation (in degrees) applied to a shot when missed.")]
         public float MaxDeviationAngle = 22f;
 
+        [Header("Spin Adjustments")]
+        [Tooltip("How many degrees the loft is adjusted at max top/back spin.")]
+        public float SpinLoftEffect = 10f;
+        
+        [Tooltip("Lateral acceleration applied in-flight for max curl/sidespin.")]
+        public float CurlAcceleration = 5f;
+
         #endregion
 
         #region Dependencies
@@ -284,25 +291,52 @@ namespace GolfGame.Controllers
 
         private Vector3 CalculateVelocityToHitTarget(Vector3 targetPos)
         {
+            Vector2 spin = GolfGame.UI.SpinInputUI.GlobalCurrentSpin;
+
             Vector3 diff = targetPos - transform.position;
             Vector3 horizontalDiff = new Vector3(diff.x, 0f, diff.z);
             float d = horizontalDiff.magnitude;
             float h = diff.y;
             float g = Mathf.Abs(Physics.gravity.y);
-            float theta = DefaultLoftAngle * Mathf.Deg2Rad;
+            
+            // 1. Adjust loft based on vertical spin (Topspin = flatter, Backspin = higher)
+            float adjustedLoft = DefaultLoftAngle - (spin.y * SpinLoftEffect);
+            float theta = adjustedLoft * Mathf.Deg2Rad;
 
             float denominator = 2f * (d * Mathf.Tan(theta) - h);
             if (denominator <= 0.001f || d <= 0.001f) return horizontalDiff.normalized * 5f + Vector3.up * 2f;
 
             float speed = (d / Mathf.Cos(theta)) * Mathf.Sqrt(g / denominator);
-            float clubPower = CurrentClub != null ? CurrentClub.Power : 15f;
-            float debuff = PhysicsController != null && PhysicsController.CurrentGround != null ? PhysicsController.CurrentGround.PowerDebuff : 0f;
-            float maxSpeed = clubPower * PowerScale * (1f - debuff);
-            speed = Mathf.Min(speed, maxSpeed);
+            
+            // CRITICAL FIX: DO NOT CLAMP SPEED HERE! 
+            // The target marker's distance is already clamped during the setup phase. 
+            // If we lower the loft with topspin, we MUST allow the speed to naturally increase to reach the exact same target.
 
             Vector3 flatDirection = horizontalDiff.normalized;
             Vector3 loftAxis = Vector3.Cross(flatDirection, Vector3.up);
-            return Quaternion.AngleAxis(DefaultLoftAngle, loftAxis) * flatDirection * speed;
+            Vector3 baseVelocity = Quaternion.AngleAxis(adjustedLoft, loftAxis) * flatDirection * speed;
+
+            // 2. Adjust initial velocity for sidespin (curl)
+            if (Mathf.Abs(spin.x) > 0.01f)
+            {
+                // CRITICAL FIX: Calculate EXACT time of flight using quadratic formula for gravity
+                float Vy = baseVelocity.y;
+                float discriminant = Vy * Vy - 2f * g * h;
+                float timeOfFlight = 0f;
+                
+                if (discriminant >= 0)
+                    timeOfFlight = (Vy + Mathf.Sqrt(discriminant)) / g;
+                else
+                    timeOfFlight = d / (speed * Mathf.Cos(theta)); // Fallback
+
+                Vector3 rightDir = Vector3.Cross(Vector3.up, flatDirection).normalized;
+                
+                // Offset initial launch to compensate for the continuous curl acceleration in the air
+                Vector3 lateralOffset = rightDir * (-0.5f * CurlAcceleration * spin.x * timeOfFlight);
+                baseVelocity += lateralOffset;
+            }
+
+            return baseVelocity;
         }
 
         private bool IsPuttingMode()
@@ -431,6 +465,12 @@ namespace GolfGame.Controllers
                     if (PhysicsController != null)
                     {
                         PhysicsController.SetAppliedSpin(GolfGame.UI.SpinInputUI.GlobalCurrentSpin);
+                        
+                        // CRITICAL FIX: The curve direction MUST be perpendicular to the straight line to the target, 
+                        // NOT the offset launch velocity!
+                        Vector3 toTarget = AimVisuals.ActiveTargetMarker.transform.position - transform.position;
+                        Vector3 straightFlatDir = new Vector3(toTarget.x, 0f, toTarget.z).normalized;
+                        PhysicsController.SetFlightRightDir(Vector3.Cross(Vector3.up, straightFlatDir).normalized);
                     }
 
                     GameStateManager.Instance.ChangeState(GameStateManager.GameState.Flight);
@@ -465,24 +505,19 @@ namespace GolfGame.Controllers
 
             float distanceMultiplier = 1f;
 
+            Vector3 preciseVelocity = CalculateVelocityToHitTarget(AimVisuals.ActiveTargetMarker.transform.position);
+
             if (AccuracyController != null && AccuracyController.IsLocked)
             {
                 float deviationAngle = AccuracyController.LockedAccuracyValue * AccuracyController.DeviationMultiplier;
-                flatDirection = Quaternion.AngleAxis(deviationAngle, Vector3.up) * flatDirection;
+                preciseVelocity = Quaternion.AngleAxis(deviationAngle, Vector3.up) * preciseVelocity;
 
                 float accuracyAbs = Mathf.Abs(AccuracyController.LockedAccuracyValue);
                 if (accuracyAbs < 0.05f) distanceMultiplier = 1.05f; 
                 else distanceMultiplier = 1f - (accuracyAbs * 0.2f); 
             }
-
-            Vector3 loftAxis  = Vector3.Cross(flatDirection, Vector3.up);
-            Vector3 launchDir = Quaternion.AngleAxis(DefaultLoftAngle, loftAxis) * flatDirection;
-
-            Vector3 preciseVelocity = CalculateVelocityToHitTarget(AimVisuals.ActiveTargetMarker.transform.position);
             
-            float speed = preciseVelocity.magnitude * speedMultiplier * distanceMultiplier;
-
-            return launchDir * speed;
+            return preciseVelocity * speedMultiplier * distanceMultiplier;
         }
     }
 }

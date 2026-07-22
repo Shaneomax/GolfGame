@@ -5071,10 +5071,6 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: e14903cf25fe30f4cbb609dc595941e1, type: 2}
-    - target: {fileID: -2577548232221058511, guid: 6bb9e2f3c27edd74dbc324eec86b70ef, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: -0.075
-      objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 6bb9e2f3c27edd74dbc324eec86b70ef, type: 3}
       propertyPath: m_Name
       value: HOLE_boX4

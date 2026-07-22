@@ -48,6 +48,17 @@ namespace GolfGame.Controllers
         [Tooltip("Extra vertical bounce velocity added when full backspin is applied to kill forward momentum.")]
         public float MaxBackSpinUpwardBonus = 2.0f;
 
+        [Header("In-Flight Curl")]
+        [Tooltip("Lateral acceleration applied in flight for full side spin.")]
+        public float CurlAcceleration = 5f;
+
+        private Vector3 _flightRightDir = Vector3.zero;
+
+        public void SetFlightRightDir(Vector3 rightDir)
+        {
+            _flightRightDir = rightDir;
+        }
+
         private Vector2 _appliedSpin = Vector2.zero;
 
         public void SetAppliedSpin(Vector2 spin)
@@ -185,6 +196,12 @@ namespace GolfGame.Controllers
         {
             if (GameStateManager.Instance != null && GameStateManager.Instance.CurrentState == GameStateManager.GameState.Flight)
             {
+                // --- NEW: IN-FLIGHT CURL PHYSICS ---
+                if (!isGrounded && Mathf.Abs(_appliedSpin.x) > 0.01f && bounceCount == 0)
+                {
+                    rb.AddForce(_flightRightDir * (_appliedSpin.x * CurlAcceleration), ForceMode.Acceleration);
+                }
+
                 // 1. DYNAMIC MOMENTUM KILL
                 rb.linearDamping = currentGround.LinearDrag;
                 rb.angularDamping = currentGround.AngularDrag;
@@ -319,22 +336,18 @@ namespace GolfGame.Controllers
             float forwardSpeed = horizontalVel.magnitude;
             float impactDownSpeed = Mathf.Abs(Mathf.Min(impactVelocity.y, 0f)); 
 
-            // Driven entirely by the Scriptable Object
             float bounceUpVelocity = (impactDownSpeed * currentGround.FirstBounceImpactScale)
-                                   + (forwardSpeed * currentGround.ForwardToBounceConversion);
+                                + (forwardSpeed * currentGround.ForwardToBounceConversion);
 
             float newForwardSpeed = forwardSpeed * currentGround.FirstBounceForwardKill;
 
-            // --- APPLY SPIN ---
-            // Top/Back spin (Y)
+            // Apply Top/Back spin (Y)
             if (_appliedSpin.y > 0) 
             {
-                // Top spin: increase forward speed
                 newForwardSpeed *= Mathf.Lerp(1f, MaxTopSpinForwardMultiplier, _appliedSpin.y);
             }
             else if (_appliedSpin.y < 0)
             {
-                // Back spin: decrease forward speed, slightly increase bounce height to stop it
                 newForwardSpeed *= Mathf.Lerp(1f, MaxBackSpinForwardMultiplier, Mathf.Abs(_appliedSpin.y));
                 bounceUpVelocity += MaxBackSpinUpwardBonus * Mathf.Abs(_appliedSpin.y);
             }
@@ -342,14 +355,6 @@ namespace GolfGame.Controllers
             Vector3 newHorizontal = horizontalVel.sqrMagnitude > 0.001f
                 ? horizontalVel.normalized * newForwardSpeed
                 : Vector3.zero;
-
-            // Side spin (X)
-            if (Mathf.Abs(_appliedSpin.x) > 0.01f && horizontalVel.sqrMagnitude > 0.001f)
-            {
-                Vector3 rightDir = Vector3.Cross(Vector3.up, horizontalVel.normalized).normalized;
-                // Add lateral velocity based on side spin
-                newHorizontal += rightDir * (_appliedSpin.x * MaxSideSpinVelocity);
-            }
 
             lastBounceUpVelocity = bounceUpVelocity;
             rb.linearVelocity = new Vector3(newHorizontal.x, bounceUpVelocity, newHorizontal.z);
@@ -367,7 +372,7 @@ namespace GolfGame.Controllers
 
             float forwardRetention = currentGround.ForwardRetentionPerBounce;
 
-            // Apply Top/Back spin to subsequent bounces as well (scaled down)
+            // Apply Top/Back spin (Y)
             if (_appliedSpin.y > 0) 
             {
                 forwardRetention *= Mathf.Lerp(1f, MaxTopSpinForwardMultiplier, _appliedSpin.y);
@@ -379,19 +384,11 @@ namespace GolfGame.Controllers
 
             Vector3 newHorizontal = horizontalVel * forwardRetention;
 
-            // Apply Side spin to subsequent bounces (scaled down)
-            if (Mathf.Abs(_appliedSpin.x) > 0.01f && horizontalVel.sqrMagnitude > 0.001f)
-            {
-                Vector3 rightDir = Vector3.Cross(Vector3.up, horizontalVel.normalized).normalized;
-                newHorizontal += rightDir * (_appliedSpin.x * MaxSideSpinVelocity * 0.5f); // less side spin on later bounces
-            }
-
             vel.x = newHorizontal.x;
             vel.z = newHorizontal.z;
             vel.y = lastBounceUpVelocity;
 
             rb.linearVelocity = vel;
-
         }
 
         private System.Collections.IEnumerator KillBounce()
@@ -447,6 +444,30 @@ namespace GolfGame.Controllers
                 }
             }
             return maxIndex;
+        }
+
+        public GroundData GetGroundDataAtPosition(Vector3 position)
+        {
+            GroundData result = DefaultGround;
+            
+            // Note: Since we don't have a collision here, we check if we are above the terrain
+            if (Terrain.activeTerrain != null)
+            {
+                int textureIndex = GetMainTerrainTexture(position, Terrain.activeTerrain);
+                if (TerrainTextureMappings != null)
+                {
+                    foreach (var mapping in TerrainTextureMappings)
+                    {
+                        if (mapping.TextureIndex == textureIndex)
+                        {
+                            result = mapping.SurfaceData;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            return result;
         }
     }
 }
