@@ -54,6 +54,8 @@ namespace GolfGame.Controllers
             BallPhysicsController physics = GetComponent<BallPhysicsController>();
             if (physics == null || physics.DefaultGround == null) return;
             
+            float effectiveCurlAccel = physics != null ? physics.CurlAcceleration : CurlAcceleration;
+
             int maxSteps = 800;
             if (pointsArray == null || pointsArray.Length < maxSteps)
             {
@@ -147,19 +149,24 @@ namespace GolfGame.Controllers
                         if (appliedSpin.y > 0)
                         {
                             newForwardSpeed *= Mathf.Lerp(1f, physics.MaxTopSpinForwardMultiplier, appliedSpin.y);
-                            bounceUpVelocity *= Mathf.Lerp(1f, 0.4f, appliedSpin.y); // Topspin heavily reduces bounce height visually
                         }
                         else if (appliedSpin.y < 0)
                         {
                             newForwardSpeed *= Mathf.Lerp(1f, physics.MaxBackSpinForwardMultiplier, Mathf.Abs(appliedSpin.y));
-                            bounceUpVelocity += physics.MaxBackSpinUpwardBonus * Mathf.Abs(appliedSpin.y);
                         }
 
                         // HARD CLAMP FOR VISUALS: Guarantee the visual bounce is always smaller than the main flight.
                         float absoluteMaxBounce = Mathf.Max(impactDownSpeed * 0.6f, 1.5f);
                         if (bounceUpVelocity > absoluteMaxBounce) bounceUpVelocity = absoluteMaxBounce;
 
-                        newHorizontal = horizontalVel.sqrMagnitude > 0.001f ? horizontalVel.normalized * newForwardSpeed : Vector3.zero;
+                        Vector3 forwardDir = horizontalVel.sqrMagnitude > 0.001f ? horizontalVel.normalized : flightRightDir;
+                        if (Mathf.Abs(appliedSpin.x) > 0.01f)
+                        {
+                            float sideAngle = appliedSpin.x * 45.0f;
+                            forwardDir = Quaternion.AngleAxis(sideAngle, Vector3.up) * forwardDir;
+                        }
+
+                        newHorizontal = forwardDir * newForwardSpeed;
                     }
                     else
                     {
@@ -173,7 +180,14 @@ namespace GolfGame.Controllers
                         else if (appliedSpin.y < 0)
                             forwardRetention *= Mathf.Lerp(1f, physics.MaxBackSpinForwardMultiplier, Mathf.Abs(appliedSpin.y));
 
-                        newHorizontal = horizontalVel * forwardRetention;
+                        Vector3 forwardDir = horizontalVel.sqrMagnitude > 0.001f ? horizontalVel.normalized : Vector3.forward;
+                        if (Mathf.Abs(appliedSpin.x) > 0.01f)
+                        {
+                            float sideAngle = appliedSpin.x * 25.0f;
+                            forwardDir = Quaternion.AngleAxis(sideAngle, Vector3.up) * forwardDir;
+                        }
+
+                        newHorizontal = forwardDir * (horizontalVel.magnitude * forwardRetention);
                     }
 
                     lastBounceUpVelocity = bounceUpVelocity;
