@@ -191,6 +191,7 @@ namespace GolfGame.Controllers
             lineRenderer.enabled = true;
         }
 
+
         public void HideTrajectory()
         {
             lineRenderer.enabled      = false;
