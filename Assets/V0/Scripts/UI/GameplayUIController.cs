@@ -63,8 +63,8 @@ namespace GolfGame.UI
 
         private void HandleStateChanged(GameStateManager.GameState newState)
         {
-            // Close spin dashboard when leaving Aiming
-            if (newState != GameStateManager.GameState.Aiming && _isSpinDashboardActive)
+            // Close spin dashboard when leaving Setup
+            if (newState != GameStateManager.GameState.Setup && _isSpinDashboardActive)
             {
                 _isSpinDashboardActive = false;
                 IsSpinDashboardOpen = false;
@@ -106,12 +106,12 @@ namespace GolfGame.UI
         }
 
         /// <summary>
-        /// Call this from the BallButton's OnClick(). Toggles SpinDashboard in Aiming state only.
+        /// Call this from the BallButton's OnClick(). Toggles SpinDashboard in Setup state only.
         /// </summary>
         public void OnBallButtonClicked()
         {
             if (GameStateManager.Instance == null ||
-                GameStateManager.Instance.CurrentState != GameStateManager.GameState.Aiming)
+                GameStateManager.Instance.CurrentState != GameStateManager.GameState.Setup)
             {
                 return;
             }
@@ -132,7 +132,7 @@ namespace GolfGame.UI
         public void OpenSpinDashboard()
         {
             if (GameStateManager.Instance == null ||
-                GameStateManager.Instance.CurrentState != GameStateManager.GameState.Aiming)
+                GameStateManager.Instance.CurrentState != GameStateManager.GameState.Setup)
                 return;
 
             if (!_isSpinDashboardActive)
@@ -170,10 +170,10 @@ namespace GolfGame.UI
 
             // Notify all spawned scripts (PlayerInputController, AimVisualsController, etc.)
             OnSpinDashboardToggled?.Invoke(_isSpinDashboardActive);
-            // When spin dashboard is open, hide the OnAir button. When closed, show it again.
-            if (OnAirButton != null)
+            // When spin dashboard is open in Setup state, hide the Shoot button. When closed, show it again.
+            if (ShootButton != null)
             {
-                OnAirButton.SetActive(!_isSpinDashboardActive);
+                ShootButton.SetActive(!_isSpinDashboardActive);
             }
 
             if (SpinDashboard != null)

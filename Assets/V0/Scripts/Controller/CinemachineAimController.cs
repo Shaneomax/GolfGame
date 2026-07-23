@@ -412,7 +412,8 @@ namespace GolfGame.Controllers
         private void HandleSetupCameraTouch()
         {
             bool isDraggingTarget = ballInput != null && ballInput.IsDraggingTarget;
-            if (isDraggingTarget || Input.touchCount == 0) return;
+            bool isSpinDashboardOpen = GolfGame.UI.GameplayUIController.IsSpinDashboardOpen;
+            if (isDraggingTarget || isSpinDashboardOpen || Input.touchCount == 0) return;
 
             Vector3 camRight   = SetupCamera.transform.right;
             Vector3 camForward = SetupCamera.transform.forward;

@@ -107,7 +107,7 @@ namespace GolfGame.Controllers
 
         private void HandleSpinDashboardToggled(bool isOpen)
         {
-            enabled = !isOpen;
+            // Do not disable the component; allow live trajectory updating.
         }
 
         public void ApplyBallData()
@@ -207,6 +207,8 @@ namespace GolfGame.Controllers
 
         private void HandleSetupInput()
         {
+            if (GolfGame.UI.GameplayUIController.IsSpinDashboardOpen) return;
+
             // 1. Check for initial click to start dragging
             if (Input.GetMouseButtonDown(0))
             {
