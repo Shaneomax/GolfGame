@@ -423,6 +423,9 @@ namespace GolfGame.Controllers
             if (Input.touchCount == 1)
             {
                 Touch touch = Input.GetTouch(0);
+                if (UnityEngine.EventSystems.EventSystem.current != null && 
+                    UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject(touch.fingerId)) return;
+
                 if (touch.phase == TouchPhase.Moved)
                 {
                     Vector3 panMove = (camRight   * -touch.deltaPosition.x

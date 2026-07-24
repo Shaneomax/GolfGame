@@ -4619,6 +4619,11 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 528324067}
   m_Mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &535862575 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 3416855565585284576, guid: 012738c9c3f16ff4bae7eba69de75c2b, type: 3}
+  m_PrefabInstance: {fileID: 6697616412321398469}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &537254967
 GameObject:
   m_ObjectHideFlags: 0
@@ -17441,6 +17446,9 @@ MonoBehaviour:
   pauseButton: {fileID: 541805639}
   pausePanel: {fileID: 537254967}
   settingsPanel: {fileID: 0}
+  shootButton: {fileID: 814617436}
+  equipmentPanel: {fileID: 535862575}
+  onAirButton: {fileID: 1299786376}
   mainMenuSceneName: MainMenu
 --- !u!1 &1921262477
 GameObject:
@@ -20113,7 +20121,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2528468849226625514, guid: 012738c9c3f16ff4bae7eba69de75c2b, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 3065526456208916245, guid: 012738c9c3f16ff4bae7eba69de75c2b, type: 3}
       propertyPath: m_Sprite
@@ -20230,6 +20238,10 @@ PrefabInstance:
     - target: {fileID: 7340919085587823276, guid: 012738c9c3f16ff4bae7eba69de75c2b, type: 3}
       propertyPath: m_AnchoredPosition.y
       value: -30
+      objectReference: {fileID: 0}
+    - target: {fileID: 7552091244529364397, guid: 012738c9c3f16ff4bae7eba69de75c2b, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7940912450721589654, guid: 012738c9c3f16ff4bae7eba69de75c2b, type: 3}
       propertyPath: m_IsActive

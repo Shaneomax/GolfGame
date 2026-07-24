@@ -180,7 +180,23 @@ namespace GolfGame.Controllers
 
         private void Update()
         {
-            if (GameStateManager.Instance == null || global::GameManager.IsPaused) return;
+            if (GameStateManager.Instance == null) return;
+            if (global::GameManager.IsPaused)
+            {
+                isDragging = false;
+                isDraggingTarget = false;
+                if (AimVisuals != null)
+                {
+                    AimVisuals.HideDragLine();
+                    AimVisuals.HideTrajectory();
+                }
+                if (AccuracyController != null)
+                {
+                    AccuracyController.SetDragPowerMultiplier(0f);
+                    AccuracyController.ResetLock();
+                }
+                return;
+            }
 
             // Block all main game input while the Spin Dashboard is open.
 
@@ -382,6 +398,9 @@ namespace GolfGame.Controllers
             // ── Finger/mouse pressed this frame ──────────────────────────────────
             if (Input.GetMouseButtonDown(0))
             {
+                if (UnityEngine.EventSystems.EventSystem.current != null && 
+                    UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject()) return;
+
                 isDragging = true;
                 dragStartPosition = Input.mousePosition;
 
