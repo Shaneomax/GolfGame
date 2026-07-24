@@ -7,11 +7,14 @@ public class GameManager : MonoBehaviour
     [SerializeField] private GameObject pauseButton;
     [SerializeField] private GameObject pausePanel;
     [SerializeField] private GameObject settingsPanel;
+    [SerializeField] private GameObject shootButton;
+    [SerializeField] private GameObject equipmentPanel;
+    [SerializeField] private GameObject onAirButton;
 
     [Header("Scene Names")]
     [SerializeField] private string mainMenuSceneName = "MainMenu";
 
-    private bool isPaused = false;
+    public static bool IsPaused { get; private set; } = false;
 
     private void Start()
     {
@@ -24,21 +27,38 @@ public class GameManager : MonoBehaviour
 
     public void PauseGame()
     {
-        isPaused = true;
+        IsPaused = true;
         Time.timeScale = 0f;
 
         if (pauseButton != null) pauseButton.SetActive(false);
         if (pausePanel != null) pausePanel.SetActive(true);
+        if (shootButton != null) shootButton.SetActive(false);
+        if (equipmentPanel != null) equipmentPanel.SetActive(false);
+        if (onAirButton != null) onAirButton.SetActive(false);
     }
 
     public void ResumeGame()
     {
-        isPaused = false;
+        IsPaused = false;
         Time.timeScale = 1f;
 
         if (pausePanel != null) pausePanel.SetActive(false);
         if (settingsPanel != null) settingsPanel.SetActive(false);
         if (pauseButton != null) pauseButton.SetActive(true);
+        if (equipmentPanel != null) equipmentPanel.SetActive(true);
+        
+        // Let the GameplayUIController handle the shoot button and onAirButton if possible
+        if (GolfGame.Controllers.GameStateManager.Instance != null)
+        {
+            var currentState = GolfGame.Controllers.GameStateManager.Instance.CurrentState;
+            if (shootButton != null) shootButton.SetActive(currentState == GolfGame.Controllers.GameStateManager.GameState.Setup);
+            if (onAirButton != null) onAirButton.SetActive(currentState == GolfGame.Controllers.GameStateManager.GameState.Aiming);
+        }
+        else 
+        {
+            if (shootButton != null) shootButton.SetActive(true);
+            if (onAirButton != null) onAirButton.SetActive(false);
+        }
     }
 
     // To be implemented.

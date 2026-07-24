@@ -180,7 +180,7 @@ namespace GolfGame.Controllers
 
         private void Update()
         {
-            if (GameStateManager.Instance == null) return;
+            if (GameStateManager.Instance == null || global::GameManager.IsPaused) return;
 
             // Block all main game input while the Spin Dashboard is open.
 

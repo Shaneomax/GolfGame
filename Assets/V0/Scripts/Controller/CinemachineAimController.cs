@@ -413,7 +413,7 @@ namespace GolfGame.Controllers
         {
             bool isDraggingTarget = ballInput != null && ballInput.IsDraggingTarget;
             bool isSpinDashboardOpen = GolfGame.UI.GameplayUIController.IsSpinDashboardOpen;
-            if (isDraggingTarget || isSpinDashboardOpen || Input.touchCount == 0) return;
+            if (isDraggingTarget || isSpinDashboardOpen || Input.touchCount == 0 || global::GameManager.IsPaused) return;
 
             Vector3 camRight   = SetupCamera.transform.right;
             Vector3 camForward = SetupCamera.transform.forward;
