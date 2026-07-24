@@ -40,17 +40,17 @@ namespace GolfGame.Controllers
 
         [Header("Spin Modifiers")]
         [Tooltip("Max multiplier to forward bounce speed when full top spin is applied (e.g. 1.2x)")]
-        public float MaxTopSpinForwardMultiplier = 3.5f;
+        public float MaxTopSpinForwardMultiplier = 1.4f;
         [Tooltip("Min multiplier to forward bounce speed when full back spin is applied (e.g. 0.3x)")]
-        public float MaxBackSpinForwardMultiplier = -0.5f;
+        public float MaxBackSpinForwardMultiplier = -0.1f;
         [Tooltip("How much lateral velocity is added on bounce with full side spin.")]
         public float MaxSideSpinVelocity = 3.0f;
         [Tooltip("Extra vertical bounce velocity added when full backspin is applied to kill forward momentum.")]
-        public float MaxBackSpinUpwardBonus = 8.0f;
+        public float MaxBackSpinUpwardBonus = 2.5f;
 
         [Header("In-Flight Curl")]
         [Tooltip("Lateral acceleration applied in flight for full side spin.")]
-        public float CurlAcceleration = 22f;
+        public float CurlAcceleration = 38f;
 
         private Vector3 _flightRightDir = Vector3.zero;
 
