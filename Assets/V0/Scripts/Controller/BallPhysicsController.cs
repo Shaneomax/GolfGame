@@ -141,9 +141,21 @@ namespace GolfGame.Controllers
                 rb.linearVelocity = Vector3.zero;
                 rb.angularVelocity = Vector3.zero;
                 rb.Sleep();
+                
+                // Cancel any pending StopBall / DelayStateChange coroutines
+                StopAllCoroutines();
+
                 if (GameStateManager.Instance != null)
                     GameStateManager.Instance.ChangeState(GameStateManager.GameState.Resolution);
+
+                StartCoroutine(GoToMainMenuAfterDelay(2f));
             }
+        }
+
+        private System.Collections.IEnumerator GoToMainMenuAfterDelay(float delay)
+        {
+            yield return new WaitForSeconds(delay);
+            UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenu");
         }
 
         // Stops the ball and loops back to the Setup state for the next shot
