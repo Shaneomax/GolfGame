@@ -96,7 +96,7 @@ namespace GolfGame.Controllers
                 // 2. Apply curl if airborne
                 if (position.y > currentGroundY + 0.05f && Mathf.Abs(appliedSpin.x) > 0.01f && currentBounce == 0)
                 {
-                    velocity += flightRightDir * (appliedSpin.x * CurlAcceleration) * TimeStep;
+                    velocity += flightRightDir * (appliedSpin.x * effectiveCurlAccel) * TimeStep;
                 }
 
                 // 2.5 Apply air resistance (linear drag) exactly like the Rigidbody does in flight

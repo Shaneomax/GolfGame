@@ -204,8 +204,12 @@ namespace GolfGame.Controllers
 
         // --- RESTORED LOGIC END ---
 
+        private Vector3 _lastVelocity;
+
         private void FixedUpdate()
         {
+            if (rb != null) _lastVelocity = rb.linearVelocity;
+
             if (GameStateManager.Instance != null && GameStateManager.Instance.CurrentState == GameStateManager.GameState.Flight)
             {
                 // --- NEW: IN-FLIGHT CURL PHYSICS ---
@@ -307,7 +311,8 @@ namespace GolfGame.Controllers
             if (GameStateManager.Instance != null && GameStateManager.Instance.CurrentState == GameStateManager.GameState.Flight)
             {
                 bounceCount++;
-                Vector3 impactVelocity = rb.linearVelocity;
+                Vector3 impactVelocity = _lastVelocity;
+
 
                 if (currentGround.MaxBounces <= 0)
                 {
@@ -363,6 +368,10 @@ namespace GolfGame.Controllers
                 newForwardSpeed *= Mathf.Lerp(1f, MaxBackSpinForwardMultiplier, Mathf.Abs(_appliedSpin.y));
                 bounceUpVelocity += MaxBackSpinUpwardBonus * Mathf.Abs(_appliedSpin.y);
             }
+            
+            // HARD CLAMP FOR PHYSICS: Guarantee the bounce is realistic and matches the visual predictor.
+            float absoluteMaxBounce = Mathf.Max(impactDownSpeed * 0.6f, 1.5f);
+            if (bounceUpVelocity > absoluteMaxBounce) bounceUpVelocity = absoluteMaxBounce;
             
             Vector3 newHorizontal = horizontalVel.sqrMagnitude > 0.001f
                 ? horizontalVel.normalized * newForwardSpeed

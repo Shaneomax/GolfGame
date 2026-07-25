@@ -349,8 +349,9 @@ namespace GolfGame.Controllers
 
                 Vector3 rightDir = Vector3.Cross(Vector3.up, flatDirection).normalized;
                 
+                float curlAccel = PhysicsController != null ? PhysicsController.CurlAcceleration : CurlAcceleration;
                 // Offset initial launch to compensate for the continuous curl acceleration in the air
-                Vector3 lateralOffset = rightDir * (-0.5f * CurlAcceleration * spin.x * timeOfFlight);
+                Vector3 lateralOffset = rightDir * (-0.5f * curlAccel * spin.x * timeOfFlight);
                 baseVelocity += lateralOffset;
             }
 

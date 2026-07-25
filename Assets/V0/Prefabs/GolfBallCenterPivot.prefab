@@ -595,7 +595,7 @@ MonoBehaviour:
   MaxBackSpinForwardMultiplier: 0.1
   MaxSideSpinVelocity: 3
   MaxBackSpinUpwardBonus: 2.5
-  CurlAcceleration: 10
+  CurlAcceleration: 40
 --- !u!1 &9168367827328779700
 GameObject:
   m_ObjectHideFlags: 0
