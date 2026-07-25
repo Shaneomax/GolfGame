@@ -26,6 +26,9 @@ namespace GolfGame.UI
         [Tooltip("The Spin Dashboard (Image/Panel) - toggled by BallButton in Aiming state.")]
         public GameObject SpinDashboard;
 
+        [Tooltip("The Ball Button - visible only in Setup state.")]
+        public GameObject BallButton;
+
         private bool _isSpinDashboardActive = false;
 
         /// <summary>
@@ -92,13 +95,20 @@ namespace GolfGame.UI
                     if (OnAirButton != null) OnAirButton.SetActive(false);
                     if (SpinDashboard != null) SpinDashboard.SetActive(false);
                     if (PerfectButton != null) PerfectButton.SetActive(false);
+                    if (BallButton != null) BallButton.SetActive(true);
                     break;
 
                 case GameStateManager.GameState.Aiming:
+                    bool isPutting = false;
+                    var physics = FindObjectOfType<GolfGame.Controllers.BallPhysicsController>();
+                    if (physics != null && physics.CurrentGround != null)
+                        isPutting = physics.CurrentGround.IsNiceOn;
+
                     if (ShootButton != null) ShootButton.SetActive(false);
-                    if (OnAirButton != null) OnAirButton.SetActive(true);
+                    if (OnAirButton != null) OnAirButton.SetActive(!isPutting);
                     if (SpinDashboard != null) SpinDashboard.SetActive(false);
                     if (PerfectButton != null) PerfectButton.SetActive(true);
+                    if (BallButton != null) BallButton.SetActive(false);
                     break;
 
                 default:
@@ -107,6 +117,7 @@ namespace GolfGame.UI
                     if (OnAirButton != null) OnAirButton.SetActive(false);
                     if (SpinDashboard != null) SpinDashboard.SetActive(false);
                     if (PerfectButton != null) PerfectButton.SetActive(false);
+                    if (BallButton != null) BallButton.SetActive(false);
                     break;
             }
         }
