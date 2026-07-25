@@ -370,7 +370,7 @@ namespace GolfGame.Controllers
             }
             
             // HARD CLAMP FOR PHYSICS: Guarantee the bounce is realistic and matches the visual predictor.
-            float absoluteMaxBounce = Mathf.Max(impactDownSpeed * 0.6f, 1.5f);
+            float absoluteMaxBounce = Mathf.Max(impactDownSpeed * 0.4f, 1.0f);
             if (bounceUpVelocity > absoluteMaxBounce) bounceUpVelocity = absoluteMaxBounce;
             
             Vector3 newHorizontal = horizontalVel.sqrMagnitude > 0.001f

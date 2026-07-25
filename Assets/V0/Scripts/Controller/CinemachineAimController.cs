@@ -99,7 +99,7 @@ namespace GolfGame.Controllers
         // ─────────────────────────────────────────────────────────────
         [Header("Landing Camera (Planted) Settings")]
         [Tooltip("Offset relative to the landing spot. X=Sideways, Y=Up, Z=Forward")]
-        public Vector3 LandingCameraPlantedOffset = new Vector3(30f, 5f, 20f);
+        public Vector3 LandingCameraPlantedOffset = new Vector3(15f, 3f, 10f);
 
         [Header("Landing Camera Bounce Zoom")]
         [Tooltip("How fast the landing camera zooms toward the ball after the first bounce.")]
@@ -208,7 +208,9 @@ namespace GolfGame.Controllers
 
                 case GameStateManager.GameState.Flight:
                     HandleFlightSubStateTransitions();
-                    if (_flightSubState == FlightState_Bounce)
+                    if (_flightSubState == FlightState_Descent)
+                        HandleFlightDescentUpdate();
+                    else if (_flightSubState == FlightState_Bounce)
                         HandleLandingBounceZoom();
                     else if (_flightSubState == FlightState_Roll)
                         HandleFlightRollUpdate();
@@ -323,9 +325,11 @@ namespace GolfGame.Controllers
             }
 
             // 2. Position the camera straight behind the ball
-            AimCamera.transform.position = ballTransform.position
+            Vector3 desiredPos = ballTransform.position
                 - (aimDir * AimCameraDistance)
                 + (Vector3.up * AimCameraHeight);
+            
+            AimCamera.transform.position = PreventUnderground(desiredPos, 0.5f);
 
             // 3. Stare directly at the flag
             AimCamera.transform.LookAt(flag != null ? flag : ballTransform);
@@ -400,7 +404,7 @@ namespace GolfGame.Controllers
                 _hasSavedManualSetup  = true;
             }
 
-            SetupCamera.transform.position = ballPos + (aimRotation * _localCameraOffset);
+            SetupCamera.transform.position = PreventUnderground(ballPos + (aimRotation * _localCameraOffset), 0.5f);
             SetupCamera.transform.rotation = aimRotation * _localCameraRotation;
             _setupCameraPositioned         = true;
         }
@@ -439,7 +443,7 @@ namespace GolfGame.Controllers
                         newPos.z = Mathf.Clamp(newPos.z, ballTransform.position.z + MinPanZ, ballTransform.position.z + MaxPanZ);
                     }
                     
-                    SetupCamera.transform.position = newPos;
+                    SetupCamera.transform.position = PreventUnderground(newPos, 0.5f);
                 }
             }
             else if (Input.touchCount == 2)
@@ -455,6 +459,7 @@ namespace GolfGame.Controllers
 
                 SetupCamera.transform.position -=
                     SetupCamera.transform.forward * ((prevMag - currentMag) * TouchZoomSpeed);
+                SetupCamera.transform.position = PreventUnderground(SetupCamera.transform.position, 0.5f);
             }
         }
 
@@ -521,11 +526,12 @@ namespace GolfGame.Controllers
                 - (aimDir * AimCameraDistance)
                 + (Vector3.up * AimCameraHeight);
 
-            AimCamera.transform.position = Vector3.Lerp(
+            Vector3 lerpedPos = Vector3.Lerp(
                 AimCamera.transform.position,
                 desiredPos,
                 Time.deltaTime * PuttingCameraFollowSpeed
             );
+            AimCamera.transform.position = PreventUnderground(lerpedPos, 0.5f);
 
             // 3. Stare directly at the flag
             AimCamera.transform.LookAt(flag != null ? flag : ballTransform);
@@ -550,9 +556,10 @@ namespace GolfGame.Controllers
                 FlightCamera.Priority  = 10;
                 FlightCamera.LookAt    = ballTransform;
                 FlightCamera.Follow    = null; // planted
-                FlightCamera.transform.position = _shotStartPosition
+                Vector3 startPos = _shotStartPosition
                     - (shotDir * 4f)
                     + (Vector3.up * 1.5f);
+                FlightCamera.transform.position = PreventUnderground(startPos, 0.5f);
             }
 
             // 2. Apex Camera – side view, planted on the ground looking up
@@ -641,13 +648,27 @@ namespace GolfGame.Controllers
             LandingCamera.Follow   = null;
             LandingCamera.LookAt   = ballTransform;
 
+            // Seed initial position to avoid 1-frame pop
+            HandleFlightDescentUpdate();
+        }
+
+        /// <summary>
+        /// Keeps the Landing Camera close to the ball during the descent phase.
+        /// </summary>
+        private void HandleFlightDescentUpdate()
+        {
+            if (LandingCamera == null || ballTransform == null) return;
+
             Vector3 shotDir   = GetHorizontalDirection(_shotStartPosition, _shotTargetPosition).normalized;
             Vector3 shotRight = Vector3.Cross(Vector3.up, shotDir).normalized;
 
-            LandingCamera.transform.position = _shotTargetPosition
+            // Track the ball continuously rather than planting at the distant target
+            Vector3 targetPos = ballTransform.position
                 + (shotRight  * LandingCameraPlantedOffset.x)
                 + (Vector3.up * LandingCameraPlantedOffset.y)
                 + (shotDir    * LandingCameraPlantedOffset.z);
+                
+            LandingCamera.transform.position = PreventUnderground(targetPos, 0.5f);
         }
 
         /// <summary>
@@ -669,11 +690,12 @@ namespace GolfGame.Controllers
 
             // Smoothly blend from the exact starting position to the tracking position using DOTween's progress
             // This guarantees a smooth start with zero jumping, regardless of where the ball bounced
-            LandingCamera.transform.position = Vector3.Lerp(
+            Vector3 lerpedPos = Vector3.Lerp(
                 _bounceStartCamPos,
                 desiredPos,
                 _bounceZoomProgress
             );
+            LandingCamera.transform.position = PreventUnderground(lerpedPos, 0.5f);
         }
 
 
@@ -697,9 +719,10 @@ namespace GolfGame.Controllers
             _rollCamVelocityRef    = Vector3.zero;
             _currentRollDistance   = RollCameraDistance;
             _currentRollHeight     = RollCameraHeight;
-            RollCamera.transform.position = ballTransform.position
+            Vector3 startPos = ballTransform.position
                 - (_smoothedRollDir * _currentRollDistance)
                 + (Vector3.up       * _currentRollHeight);
+            RollCamera.transform.position = PreventUnderground(startPos, 0.5f);
         }
 
         /// <summary>
@@ -749,12 +772,13 @@ namespace GolfGame.Controllers
                 + (Vector3.up       * _currentRollHeight);
 
             // ── 5. SmoothDamp to desired position (gives organic inertia lag) ──
-            RollCamera.transform.position = Vector3.SmoothDamp(
+            Vector3 smoothPos = Vector3.SmoothDamp(
                 RollCamera.transform.position,
                 desiredPos,
                 ref _rollCamVelocityRef,
                 1f / Mathf.Max(RollCameraFollowSpeed, 0.01f)
             );
+            RollCamera.transform.position = PreventUnderground(smoothPos, 0.5f);
 
             // ── 6. Keep AimTargetAnchor in sync (other systems may read it) ────
             if (AimTargetAnchor != null)
@@ -801,6 +825,22 @@ namespace GolfGame.Controllers
         // ─────────────────────────────────────────────────────────────
         // Utility helpers
         // ─────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Prevents a camera from moving below the terrain by clamping its Y position.
+        /// </summary>
+        private Vector3 PreventUnderground(Vector3 position, float minHeight = 0.5f)
+        {
+            if (Terrain.activeTerrain != null)
+            {
+                float terrainY = Terrain.activeTerrain.SampleHeight(position) + Terrain.activeTerrain.transform.position.y;
+                if (position.y < terrainY + minHeight)
+                {
+                    position.y = terrainY + minHeight;
+                }
+            }
+            return position;
+        }
 
         /// <summary>
         /// Finds the ball GameObject by the "Player" tag and caches its components.
