@@ -177,6 +177,19 @@ namespace GolfGame.UI
         }
 
         /// <summary>
+        /// Hook this up to the Reset button inside the Spin Dashboard.
+        /// Resets the spin marker back to the center.
+        /// </summary>
+        public void OnResetSpinButtonClicked()
+        {
+            var spinUI = FindObjectOfType<GolfGame.UI.SpinInputUI>();
+            if (spinUI != null)
+            {
+                spinUI.ResetSpin();
+            }
+        }
+
+        /// <summary>
         /// Handles DOTween pop animation for the SpinDashboard and toggles OnAirButton accordingly.
         /// </summary>
         private void UpdateSpinDashboard()

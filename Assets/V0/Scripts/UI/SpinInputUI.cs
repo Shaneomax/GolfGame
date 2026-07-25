@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
+using GolfGame.Controllers;
 
 namespace GolfGame.UI
 {
@@ -35,6 +36,25 @@ namespace GolfGame.UI
             {
                 SpinMarker.anchoredPosition = Vector2.zero;
             }
+        }
+
+        private void Start()
+        {
+            if (GameStateManager.Instance != null)
+                GameStateManager.Instance.OnStateEnter += OnStateEnter;
+        }
+
+        private void OnDestroy()
+        {
+            if (GameStateManager.Instance != null)
+                GameStateManager.Instance.OnStateEnter -= OnStateEnter;
+        }
+
+        private void OnStateEnter(GameStateManager.GameState newState)
+        {
+            // Auto-reset spin after every shot
+            if (newState == GameStateManager.GameState.Flight)
+                ResetSpin();
         }
 
         private bool _isDragging = false;
