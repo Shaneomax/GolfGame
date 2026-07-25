@@ -7,7 +7,7 @@ namespace GolfGame.UI
     /// Handles the Golf Clash style spin input UI.
     /// Attach this script to the background Ball Image and assign the Red Dot marker to it.
     /// </summary>
-    public class SpinInputUI : MonoBehaviour, IDragHandler, IPointerDownHandler
+    public class SpinInputUI : MonoBehaviour, IDragHandler, IPointerDownHandler, IBeginDragHandler, IEndDragHandler
     {
         [Tooltip("The red dot or crosshair that indicates the current spin.")]
         public RectTransform SpinMarker;
@@ -38,6 +38,16 @@ namespace GolfGame.UI
         }
 
         public void OnPointerDown(PointerEventData eventData)
+        {
+            UpdateMarkerPosition(eventData);
+        }
+
+        public void OnBeginDrag(PointerEventData eventData)
+        {
+            UpdateMarkerPosition(eventData);
+        }
+
+        public void OnEndDrag(PointerEventData eventData)
         {
             UpdateMarkerPosition(eventData);
         }

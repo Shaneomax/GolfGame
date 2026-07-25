@@ -156,7 +156,7 @@ namespace GolfGame.Controllers
                         }
 
                         // HARD CLAMP FOR VISUALS: Guarantee the visual bounce is always smaller than the main flight.
-                        float absoluteMaxBounce = Mathf.Max(impactDownSpeed * 0.4f, 1.0f);
+                        float absoluteMaxBounce = Mathf.Max(impactDownSpeed * 0.45f, 1.2f);
                         if (bounceUpVelocity > absoluteMaxBounce) bounceUpVelocity = absoluteMaxBounce;
 
                         Vector3 forwardDir = horizontalVel.sqrMagnitude > 0.001f ? horizontalVel.normalized : flightRightDir;

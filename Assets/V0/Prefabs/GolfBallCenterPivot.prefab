@@ -338,7 +338,7 @@ LineRenderer:
       m_Curve:
       - serializedVersion: 3
         time: 0
-        value: 0.21500015
+        value: 0.49185562
         inSlope: 0
         outSlope: 0
         tangentMode: 0
@@ -591,10 +591,10 @@ MonoBehaviour:
     SurfaceData: {fileID: 11400000, guid: bcfe372e8eb0fa342a4457e3d4b32c6d, type: 2}
   - TextureIndex: 3
     SurfaceData: {fileID: 11400000, guid: 821f38db0370616448d681232df77a27, type: 2}
-  MaxTopSpinForwardMultiplier: 0.8
+  MaxTopSpinForwardMultiplier: 1.2
   MaxBackSpinForwardMultiplier: 0.1
-  MaxSideSpinVelocity: 3
-  MaxBackSpinUpwardBonus: 2.5
+  MaxSideSpinVelocity: 0.4
+  MaxBackSpinUpwardBonus: 0.7
   CurlAcceleration: 40
 --- !u!1 &9168367827328779700
 GameObject:
