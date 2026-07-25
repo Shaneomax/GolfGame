@@ -137,6 +137,13 @@ namespace GolfGame.Controllers
             LockedAccuracyValue = (_swingProgress - 0.5f) * 2f;
         }
 
+        public void ForcePerfectAccuracy()
+        {
+            IsLocked = true;
+            LockedAccuracyValue = 0f;
+            // No UpdateNeedleVisuals() so needle stays where it is!
+        }
+
         public void ResetLock()
         {
             IsLocked = false;

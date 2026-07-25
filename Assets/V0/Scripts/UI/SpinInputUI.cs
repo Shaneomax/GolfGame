@@ -7,7 +7,7 @@ namespace GolfGame.UI
     /// Handles the Golf Clash style spin input UI.
     /// Attach this script to the background Ball Image and assign the Red Dot marker to it.
     /// </summary>
-    public class SpinInputUI : MonoBehaviour, IDragHandler, IPointerDownHandler, IBeginDragHandler, IEndDragHandler
+    public class SpinInputUI : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
     {
         [Tooltip("The red dot or crosshair that indicates the current spin.")]
         public RectTransform SpinMarker;
@@ -37,35 +37,46 @@ namespace GolfGame.UI
             }
         }
 
+        private bool _isDragging = false;
+        private Camera _pressCamera;
+
         public void OnPointerDown(PointerEventData eventData)
         {
-            UpdateMarkerPosition(eventData);
+            _isDragging = true;
+            _pressCamera = eventData.pressEventCamera;
+            UpdateMarkerPosition(eventData.position, _pressCamera);
         }
 
-        public void OnBeginDrag(PointerEventData eventData)
+        public void OnPointerUp(PointerEventData eventData)
         {
-            UpdateMarkerPosition(eventData);
+            _isDragging = false;
         }
 
-        public void OnEndDrag(PointerEventData eventData)
+        private void Update()
         {
-            UpdateMarkerPosition(eventData);
+            if (_isDragging)
+            {
+                // Fallback to stop dragging if mouse/touch is released outside the UI
+                if (!Input.GetMouseButton(0))
+                {
+                    _isDragging = false;
+                    return;
+                }
+                
+                // Smooth continuous update every frame
+                UpdateMarkerPosition(Input.mousePosition, _pressCamera);
+            }
         }
 
-        public void OnDrag(PointerEventData eventData)
-        {
-            UpdateMarkerPosition(eventData);
-        }
-
-        private void UpdateMarkerPosition(PointerEventData eventData)
+        private void UpdateMarkerPosition(Vector2 screenPosition, Camera cam)
         {
             if (SpinMarker == null || _rectTransform == null) return;
 
             // Convert screen position of the mouse/touch to a local position inside the Ball background
             RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 _rectTransform, 
-                eventData.position, 
-                eventData.pressEventCamera, 
+                screenPosition, 
+                cam, 
                 out Vector2 localPoint
             );
 

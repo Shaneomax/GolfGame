@@ -205,19 +205,28 @@ namespace GolfGame.Controllers
             if (state == GameStateManager.GameState.Setup)
             {
                 HandleSetupInput();
-                
+            }
+            else if (state == GameStateManager.GameState.Aiming)
+            {
+                HandleAimingInput();
+            }
+        }
+
+        // LateUpdate runs AFTER all Update() calls - this guarantees SpinInputUI has
+        // already written the latest GlobalCurrentSpin before we redraw the trajectory.
+        private void LateUpdate()
+        {
+            if (GameStateManager.Instance == null) return;
+            if (global::GameManager.IsPaused) return;
+
+            var state = GameStateManager.Instance.CurrentState;
+            if (state == GameStateManager.GameState.Setup)
+            {
                 if (AimVisuals != null && AimVisuals.ActiveTargetMarker != null)
                 {
                     Vector3 launchVelocity = CalculateVelocityToHitTarget(AimVisuals.ActiveTargetMarker.transform.position);
                     AimVisuals.ShowTrajectory(launchVelocity);
                 }
-            }
-            else if (state == GameStateManager.GameState.Aiming)
-            {
-                // Use Update-based polling instead of OnMouseDown/Up callbacks.
-                // OnMouse* callbacks require the touch to hit the ball's Collider, which
-                // silently fails on real Android devices when the ball is small on screen.
-                HandleAimingInput();
             }
         }
 
@@ -448,59 +457,108 @@ namespace GolfGame.Controllers
                 }
 
                 Vector3 dragVector = dragStartPosition - Input.mousePosition;
-                float dragMagnitude = GetScaledDragMagnitude(dragVector);
+                ExecuteShot(dragVector);
+            }
+        }
 
-                float effectiveMinDrag = IsPuttingMode() ? 0.1f : MinDragToShoot;
 
-                if (dragMagnitude < effectiveMinDrag)
+
+        public void ForcePerfectShot()
+        {
+            if (GameStateManager.Instance.CurrentState != GameStateManager.GameState.Aiming) return;
+            if (AimVisuals == null || AimVisuals.ActiveTargetMarker == null) return;
+
+            if (AccuracyController != null) AccuracyController.ForcePerfectAccuracy();
+
+            isDragging = false;
+            AimVisuals.HideDragLine();
+            AimVisuals.HideTrajectory();
+
+            Vector3 launchVelocity;
+            if (IsPuttingMode())
+            {
+                // For putting debug, just aim straight at the flag
+                Vector3 toFlag = AimVisuals.FlagTransform.position - transform.position;
+                Vector3 baseForwardDir = new Vector3(toFlag.x, 0f, toFlag.z).normalized;
+                float debuff = PhysicsController != null && PhysicsController.CurrentGround != null ? PhysicsController.CurrentGround.PowerDebuff : 0f;
+                float maxSpeed = (CurrentClub != null ? CurrentClub.Power : 15f) * PowerScale * 0.35f * (1f - debuff); 
+                launchVelocity = baseForwardDir * maxSpeed;
+            }
+            else
+            {
+                // Normal shot: get the exact mathematical velocity needed to hit the marker right now
+                launchVelocity = CalculateVelocityToHitTarget(AimVisuals.ActiveTargetMarker.transform.position);
+            }
+
+            LastLaunchPosition = transform.position;
+            rb.WakeUp();
+            rb.AddForce(launchVelocity, ForceMode.VelocityChange);
+            
+            if (PhysicsController != null)
+            {
+                PhysicsController.SetAppliedSpin(GolfGame.UI.SpinInputUI.GlobalCurrentSpin);
+                
+                Vector3 toTarget = AimVisuals.ActiveTargetMarker.transform.position - transform.position;
+                Vector3 straightFlatDir = new Vector3(toTarget.x, 0f, toTarget.z).normalized;
+                PhysicsController.SetFlightRightDir(Vector3.Cross(Vector3.up, straightFlatDir).normalized);
+            }
+
+            GameStateManager.Instance.ChangeState(GameStateManager.GameState.Flight);
+        }
+
+        private void ExecuteShot(Vector3 dragVector)
+        {
+            float dragMagnitude = GetScaledDragMagnitude(dragVector);
+            float effectiveMinDrag = IsPuttingMode() ? 0.1f : MinDragToShoot;
+
+            if (dragMagnitude < effectiveMinDrag)
+            {
+                if (AccuracyController != null)
                 {
-                    if (AccuracyController != null)
-                    {
-                        AccuracyController.SetDragPowerMultiplier(0f);
-                        AccuracyController.ResetLock();
-                    }
-                    Debug.Log($"[PlayerInput] Shot cancelled — drag {dragMagnitude:F1} below minimum {effectiveMinDrag}.");
-                    return;
+                    AccuracyController.SetDragPowerMultiplier(0f);
+                    AccuracyController.ResetLock();
                 }
+                Debug.Log($"[PlayerInput] Shot cancelled — drag {dragMagnitude:F1} below minimum {effectiveMinDrag}.");
+                return;
+            }
 
-                if (AccuracyController != null) AccuracyController.LockAccuracy();
+            if (AccuracyController != null) AccuracyController.LockAccuracy();
 
-                Vector3 launchVelocity;
-                if (IsPuttingMode())
-                {
-                    launchVelocity = CalculatePuttingVelocity(dragVector);
-                }
-                else
-                {
-                    if (AimVisuals == null || AimVisuals.ActiveTargetMarker == null) return;
-                    launchVelocity = CalculateDeviatedShotVelocity(dragVector);
-                }
+            Vector3 launchVelocity;
+            if (IsPuttingMode())
+            {
+                launchVelocity = CalculatePuttingVelocity(dragVector);
+            }
+            else
+            {
+                if (AimVisuals == null || AimVisuals.ActiveTargetMarker == null) return;
+                launchVelocity = CalculateDeviatedShotVelocity(dragVector);
+            }
 
-                // Allow tiny launch velocities when putting, otherwise require at least 0.1f sqrMagnitude
-                float minLaunchVelocitySqr = IsPuttingMode() ? 0.001f : 0.1f;
-                if (launchVelocity.sqrMagnitude > minLaunchVelocitySqr)
+            // Allow tiny launch velocities when putting, otherwise require at least 0.1f sqrMagnitude
+            float minLaunchVelocitySqr = IsPuttingMode() ? 0.001f : 0.1f;
+            if (launchVelocity.sqrMagnitude > minLaunchVelocitySqr)
+            {
+                LastLaunchPosition = transform.position;
+                rb.WakeUp();
+                rb.AddForce(launchVelocity, ForceMode.VelocityChange);
+                
+                if (PhysicsController != null)
                 {
-                    LastLaunchPosition = transform.position;
-                    rb.WakeUp();
-                    rb.AddForce(launchVelocity, ForceMode.VelocityChange);
+                    PhysicsController.SetAppliedSpin(GolfGame.UI.SpinInputUI.GlobalCurrentSpin);
                     
-                    if (PhysicsController != null)
-                    {
-                        PhysicsController.SetAppliedSpin(GolfGame.UI.SpinInputUI.GlobalCurrentSpin);
-                        
-                        // CRITICAL FIX: The curve direction MUST be perpendicular to the straight line to the target, 
-                        // NOT the offset launch velocity!
-                        Vector3 toTarget = AimVisuals.ActiveTargetMarker.transform.position - transform.position;
-                        Vector3 straightFlatDir = new Vector3(toTarget.x, 0f, toTarget.z).normalized;
-                        PhysicsController.SetFlightRightDir(Vector3.Cross(Vector3.up, straightFlatDir).normalized);
-                    }
+                    // CRITICAL FIX: The curve direction MUST be perpendicular to the straight line to the target, 
+                    // NOT the offset launch velocity!
+                    Vector3 toTarget = AimVisuals.ActiveTargetMarker.transform.position - transform.position;
+                    Vector3 straightFlatDir = new Vector3(toTarget.x, 0f, toTarget.z).normalized;
+                    PhysicsController.SetFlightRightDir(Vector3.Cross(Vector3.up, straightFlatDir).normalized);
+                }
 
-                    GameStateManager.Instance.ChangeState(GameStateManager.GameState.Flight);
-                }
-                else
-                {
-                    if (AccuracyController != null) AccuracyController.ResetLock();
-                }
+                GameStateManager.Instance.ChangeState(GameStateManager.GameState.Flight);
+            }
+            else
+            {
+                if (AccuracyController != null) AccuracyController.ResetLock();
             }
         }
 

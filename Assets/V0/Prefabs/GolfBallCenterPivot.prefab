@@ -593,7 +593,7 @@ MonoBehaviour:
     SurfaceData: {fileID: 11400000, guid: 821f38db0370616448d681232df77a27, type: 2}
   MaxTopSpinForwardMultiplier: 1.2
   MaxBackSpinForwardMultiplier: 0.1
-  MaxSideSpinVelocity: 0.4
+  MaxSideSpinVelocity: 1
   MaxBackSpinUpwardBonus: 0.7
   CurlAcceleration: 40
 --- !u!1 &9168367827328779700

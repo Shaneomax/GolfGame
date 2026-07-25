@@ -20,6 +20,9 @@ namespace GolfGame.UI
         [Tooltip("The OnAir Button - visible in Aiming state.")]
         public GameObject OnAirButton;
 
+        [Tooltip("The Perfect Shot Button (Debugging) - visible in Aiming state.")]
+        public GameObject PerfectButton;
+
         [Tooltip("The Spin Dashboard (Image/Panel) - toggled by BallButton in Aiming state.")]
         public GameObject SpinDashboard;
 
@@ -88,12 +91,14 @@ namespace GolfGame.UI
                     if (ShootButton != null) ShootButton.SetActive(true);
                     if (OnAirButton != null) OnAirButton.SetActive(false);
                     if (SpinDashboard != null) SpinDashboard.SetActive(false);
+                    if (PerfectButton != null) PerfectButton.SetActive(false);
                     break;
 
                 case GameStateManager.GameState.Aiming:
                     if (ShootButton != null) ShootButton.SetActive(false);
                     if (OnAirButton != null) OnAirButton.SetActive(true);
                     if (SpinDashboard != null) SpinDashboard.SetActive(false);
+                    if (PerfectButton != null) PerfectButton.SetActive(true);
                     break;
 
                 default:
@@ -101,6 +106,7 @@ namespace GolfGame.UI
                     if (ShootButton != null) ShootButton.SetActive(false);
                     if (OnAirButton != null) OnAirButton.SetActive(false);
                     if (SpinDashboard != null) SpinDashboard.SetActive(false);
+                    if (PerfectButton != null) PerfectButton.SetActive(false);
                     break;
             }
         }
@@ -159,6 +165,15 @@ namespace GolfGame.UI
         {
             if (GameStateManager.Instance == null) return;
             GameStateManager.Instance.ChangeState(GameStateManager.GameState.Setup);
+        }
+
+        public void OnPerfectButtonClicked()
+        {
+            var playerInput = FindObjectOfType<PlayerInputController>();
+            if (playerInput != null)
+            {
+                playerInput.ForcePerfectShot();
+            }
         }
 
         /// <summary>

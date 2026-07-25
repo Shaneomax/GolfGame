@@ -164,6 +164,7 @@ namespace GolfGame.Controllers
                         {
                             float sideAngle = appliedSpin.x * 45.0f;
                             forwardDir = Quaternion.AngleAxis(sideAngle, Vector3.up) * forwardDir;
+                            newForwardSpeed *= Mathf.Lerp(1f, 0.4f, Mathf.Abs(appliedSpin.x)); // Side spin kills forward momentum
                         }
 
                         newHorizontal = forwardDir * newForwardSpeed;
@@ -185,6 +186,7 @@ namespace GolfGame.Controllers
                         {
                             float sideAngle = appliedSpin.x * 25.0f;
                             forwardDir = Quaternion.AngleAxis(sideAngle, Vector3.up) * forwardDir;
+                            forwardRetention *= Mathf.Lerp(1f, 0.7f, Mathf.Abs(appliedSpin.x));
                         }
 
                         newHorizontal = forwardDir * (horizontalVel.magnitude * forwardRetention);

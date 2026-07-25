@@ -373,9 +373,15 @@ namespace GolfGame.Controllers
             float absoluteMaxBounce = Mathf.Max(impactDownSpeed * 0.45f, 1.2f);
             if (bounceUpVelocity > absoluteMaxBounce) bounceUpVelocity = absoluteMaxBounce;
 
-            Vector3 newHorizontal = horizontalVel.sqrMagnitude > 0.001f
-                ? horizontalVel.normalized * newForwardSpeed
-                : Vector3.zero;
+            Vector3 forwardDir = horizontalVel.sqrMagnitude > 0.001f ? horizontalVel.normalized : Vector3.forward;
+            if (Mathf.Abs(_appliedSpin.x) > 0.01f)
+            {
+                float sideAngle = _appliedSpin.x * 45.0f;
+                forwardDir = Quaternion.AngleAxis(sideAngle, Vector3.up) * forwardDir;
+                newForwardSpeed *= Mathf.Lerp(1f, 0.4f, Mathf.Abs(_appliedSpin.x));
+            }
+
+            Vector3 newHorizontal = forwardDir * newForwardSpeed;
 
             lastBounceUpVelocity = bounceUpVelocity;
             rb.linearVelocity = new Vector3(newHorizontal.x, bounceUpVelocity, newHorizontal.z);
@@ -403,7 +409,15 @@ namespace GolfGame.Controllers
                 forwardRetention *= Mathf.Lerp(1f, MaxBackSpinForwardMultiplier, Mathf.Abs(_appliedSpin.y));
             }
 
-            Vector3 newHorizontal = horizontalVel * forwardRetention;
+            Vector3 forwardDir = horizontalVel.sqrMagnitude > 0.001f ? horizontalVel.normalized : Vector3.forward;
+            if (Mathf.Abs(_appliedSpin.x) > 0.01f)
+            {
+                float sideAngle = _appliedSpin.x * 25.0f;
+                forwardDir = Quaternion.AngleAxis(sideAngle, Vector3.up) * forwardDir;
+                forwardRetention *= Mathf.Lerp(1f, 0.7f, Mathf.Abs(_appliedSpin.x));
+            }
+
+            Vector3 newHorizontal = forwardDir * (horizontalVel.magnitude * forwardRetention);
 
             vel.x = newHorizontal.x;
             vel.z = newHorizontal.z;
