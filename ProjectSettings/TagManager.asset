@@ -12,6 +12,7 @@ TagManager:
   - Bunker
   - NiceOn
   - Marker
+  - Terrain
   layers:
   - Default
   - TransparentFX
