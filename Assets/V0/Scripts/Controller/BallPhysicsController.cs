@@ -31,6 +31,11 @@ namespace GolfGame.Controllers
         public float RollPreservationFactor = 0.9f;
         public GroundData DefaultGround; // Fallback just in case!
 
+        [Tooltip("How much extra friction is applied when the ball is rolling on the ground compared to in-flight drag. " +
+                 "Higher = faster deceleration during roll-out. Default 2.5x.")]
+        [Range(1f, 10f)]
+        public float RollingFrictionMultiplier = 2.5f;
+
         [Header("Terrain Layer Setup")]
         [Tooltip("Map your terrain layers (Green, Bunker, etc.) to their specific GroundData.")]
         public List<LayerGroundMapping> TerrainLayerMappings;
@@ -219,11 +224,14 @@ namespace GolfGame.Controllers
                 }
 
                 // 1. DYNAMIC MOMENTUM KILL
-                rb.linearDamping = currentGround.LinearDrag;
-                rb.angularDamping = currentGround.AngularDrag;
-
-                // 2. ROLL FRICTION LOGIC
+                // Use a higher drag while the ball is rolling on the ground so it decelerates
+                // faster than it does in-flight.  RollingFrictionMultiplier is tunable in the Inspector.
                 bool isPureRolling = isGrounded && Mathf.Abs(rb.linearVelocity.y) < 0.2f;
+                rb.linearDamping  = isPureRolling
+                    ? currentGround.LinearDrag * RollingFrictionMultiplier
+                    : currentGround.LinearDrag;
+                rb.angularDamping = currentGround.AngularDrag;
+                // 2. ROLL FRICTION LOGIC
                 if (isPureRolling)
                 {
                     Vector3 flatVel = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
@@ -231,22 +239,33 @@ namespace GolfGame.Controllers
 
                     if (currentSpeed > 0.01f)
                     {
+                        // FIX: Prevent gravity-induced slope acceleration.
+                        // If the ball is faster than last frame while rolling, clamp it back.
+                        // This stops the ball picking up runaway speed on downhill terrain.
+                        // ExtraRollFactor below still restores speed lost to normal flat-ground friction.
+                        if (lastRollingSpeed > 0f && currentSpeed > lastRollingSpeed)
+                        {
+                            currentSpeed = lastRollingSpeed;
+                            flatVel = flatVel.normalized * currentSpeed;
+                            rb.linearVelocity = new Vector3(flatVel.x, rb.linearVelocity.y, flatVel.z);
+                        }
+
                         if (currentGround.UseExtraRoll && currentGround.ExtraRollFactor > 0f)
                         {
                             if (lastRollingSpeed > 0f && currentSpeed < lastRollingSpeed)
                             {
                                 // Calculate how much speed was lost to natural friction
                                 float speedLost = lastRollingSpeed - currentSpeed;
-                                
+
                                 // ExtraRollFactor dictates how much of that lost speed we restore
                                 // 0 = restore nothing (natural friction). 1 = restore 100% (unstoppable).
                                 float speedToRestore = speedLost * currentGround.ExtraRollFactor;
                                 currentSpeed += speedToRestore;
-                                
+
                                 rb.linearVelocity = new Vector3(flatVel.normalized.x * currentSpeed, rb.linearVelocity.y, flatVel.normalized.z * currentSpeed);
                             }
                         }
-                        
+
                         // Always track the speed so we can compare next frame
                         lastRollingSpeed = currentSpeed;
                     }
@@ -368,7 +387,11 @@ namespace GolfGame.Controllers
                 newForwardSpeed *= Mathf.Lerp(1f, MaxBackSpinForwardMultiplier, Mathf.Abs(_appliedSpin.y));
                 bounceUpVelocity += MaxBackSpinUpwardBonus * Mathf.Abs(_appliedSpin.y);
             }
-            
+
+            // FIX: Topspin reduces speed loss after bounce but must never ADD energy.
+            // If FirstBounceForwardKill * TopSpinMultiplier > 1 the ball was gaining speed — clamp that.
+            newForwardSpeed = Mathf.Min(newForwardSpeed, forwardSpeed);
+
             // HARD CLAMP FOR PHYSICS: Guarantee the bounce is realistic and matches the visual predictor.
             float absoluteMaxBounce = Mathf.Max(impactDownSpeed * 0.45f, 1.2f);
             if (bounceUpVelocity > absoluteMaxBounce) bounceUpVelocity = absoluteMaxBounce;

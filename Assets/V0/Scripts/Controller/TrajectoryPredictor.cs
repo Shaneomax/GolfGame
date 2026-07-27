@@ -170,6 +170,9 @@ namespace GolfGame.Controllers
                         if (appliedSpin.y > 0)  newFwdSpeed *= Mathf.Lerp(1f, physics.MaxTopSpinForwardMultiplier,              appliedSpin.y);
                         else if (appliedSpin.y < 0) newFwdSpeed *= Mathf.Lerp(1f, physics.MaxBackSpinForwardMultiplier, Mathf.Abs(appliedSpin.y));
 
+                        // FIX: Mirror the physics fix — topspin cannot add energy beyond the pre-bounce speed.
+                        newFwdSpeed = Mathf.Min(newFwdSpeed, fwdSpeed);
+
                         float maxBounce = Mathf.Max(impactDown * 0.45f, 1.2f);
                         if (bounceUp > maxBounce) bounceUp = maxBounce;
 
@@ -243,6 +246,11 @@ namespace GolfGame.Controllers
             int primaryStepCount, float targetHeight,
             BallPhysicsController physics, float drag)
         {
+            // Grab the target marker so we can skip it — the trajectory flies
+            // straight toward it, so its Box Collider would always be "hit" otherwise.
+            AimVisualsController aimVisuals = GetComponent<AimVisualsController>();
+            GameObject targetMarker = aimVisuals != null ? aimVisuals.ActiveTargetMarker : null;
+
             for (int i = 0; i < primaryStepCount - 1; i++)
             {
                 Vector3 from = pointsArray[i];
@@ -252,27 +260,51 @@ namespace GolfGame.Controllers
 
                 if (dist < 0.001f) continue;
 
+                // ── Height guard ──────────────────────────────────────────────────
+                // Skip segments at or below the terrain surface (bounce snap points).
+                float terrainYAtFrom = targetHeight;
+                if (Terrain.activeTerrain != null)
+                    terrainYAtFrom = Terrain.activeTerrain.SampleHeight(from)
+                                   + Terrain.activeTerrain.transform.position.y;
+
+                if (from.y < terrainYAtFrom + CollisionDetectionRadius * 2f) continue;
+
+                // ── SphereCast ────────────────────────────────────────────────────
                 if (Physics.SphereCast(from, CollisionDetectionRadius, dir.normalized,
                         out RaycastHit hit, dist, CollisionLayerMask,
                         QueryTriggerInteraction.Ignore))
                 {
-                    // Skip terrain hits — only non-terrain physics objects count
-                    bool isTerrain = hit.collider.GetComponent<Terrain>() != null
+                    // ── Skip the ball itself ──────────────────────────────────────
+                    if (hit.collider.gameObject == gameObject) continue;
+
+                    // ── Skip the target marker and all its children ───────────────
+                    // The trajectory points at the marker — its Box Collider would
+                    // always be detected without this exclusion.
+                    if (targetMarker != null &&
+                        (hit.collider.gameObject == targetMarker ||
+                         hit.collider.transform.IsChildOf(targetMarker.transform)))
+                        continue;
+
+                    // ── Skip terrain ──────────────────────────────────────────────
+                    // TerrainCollider is the definitive Unity terrain physics type.
+                    bool isTerrain = hit.collider is TerrainCollider
+                                  || hit.collider.GetComponent<TerrainCollider>() != null
+                                  || hit.collider.GetComponent<Terrain>() != null
                                   || hit.collider.CompareTag("Terrain");
                     if (isTerrain) continue;
 
-                    // Found a real physics object — simulate the post-collision arc
+                    // Found a real non-terrain, non-marker physics object
                     SimulatePostCollisionArc(
                         hit.point,
                         hit.normal,
-                        velocitiesArray[i],   // velocity of the ball at this step
+                        velocitiesArray[i],
                         targetHeight,
                         drag);
-                    return; // stop scanning after first hit
+                    return;
                 }
             }
 
-            // No object in the way — hide the secondary line
+            // Nothing in the way — hide the secondary line
             HidePostCollisionLine();
         }
 

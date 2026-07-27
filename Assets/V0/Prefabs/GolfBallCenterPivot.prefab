@@ -572,6 +572,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GolfGame.Controllers.BallPhysicsController
   RollPreservationFactor: 0
   DefaultGround: {fileID: 11400000, guid: 02b0dd1f2fc066140a151eb01b0b1e97, type: 2}
+  RollingFrictionMultiplier: 2.5
   TerrainLayerMappings:
   - TerrainLayer:
       serializedVersion: 2
@@ -598,7 +599,7 @@ MonoBehaviour:
     SurfaceData: {fileID: 11400000, guid: bcfe372e8eb0fa342a4457e3d4b32c6d, type: 2}
   - TextureIndex: 3
     SurfaceData: {fileID: 11400000, guid: 821f38db0370616448d681232df77a27, type: 2}
-  MaxTopSpinForwardMultiplier: 1.2
+  MaxTopSpinForwardMultiplier: 1
   MaxBackSpinForwardMultiplier: 0.1
   MaxSideSpinVelocity: 1
   MaxBackSpinUpwardBonus: 0.7
