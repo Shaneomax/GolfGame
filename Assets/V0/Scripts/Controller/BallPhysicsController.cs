@@ -107,6 +107,15 @@ namespace GolfGame.Controllers
             flightStartTime = Time.time;
             bounceCount = 0;
             lastBounceUpVelocity = 0f;
+            // PUTTING FIX: Reset the rolling speed tracker so the slope-clamp doesn't
+            // immediately throttle the fresh putt velocity down to zero.
+            lastRollingSpeed = 0f;
+            // PUTTING FIX: Reset grounded state so a new putt starts fresh.
+            // For putting the ball never leaves the ground, so isGrounded may still be
+            // true from the previous shot — resetting lets the FixedUpdate friction
+            // logic recalculate cleanly on the first frame.
+            collisionCount = 0;
+            isGrounded = false;
             rb.WakeUp();
         }
 
@@ -466,7 +475,11 @@ namespace GolfGame.Controllers
             
             if (!isGrounded) 
             {
-                currentGround = DefaultGround; // Reset to default when airborne
+                // PUTTING FIX: Never wipe the NiceOn ground data when the ball "exits"
+                // after rb.Sleep() — Unity can fire OnCollisionExit for sleeping bodies,
+                // which would reset currentGround to Default and break the next putt.
+                if (currentGround == null || !currentGround.IsNiceOn)
+                    currentGround = DefaultGround;
             }
         }
 
