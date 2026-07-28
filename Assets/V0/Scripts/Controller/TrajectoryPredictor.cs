@@ -192,13 +192,16 @@ namespace GolfGame.Controllers
                         if (appliedSpin.y > 0)  retention *= Mathf.Lerp(1f, physics.MaxTopSpinForwardMultiplier,              appliedSpin.y);
                         else if (appliedSpin.y < 0) retention *= Mathf.Lerp(1f, physics.MaxBackSpinForwardMultiplier, Mathf.Abs(appliedSpin.y));
 
+                        float newFwdSpeed = hVel.magnitude * retention;
+                        newFwdSpeed = Mathf.Min(newFwdSpeed, hVel.magnitude);
+
                         Vector3 fwdDir = hVel.sqrMagnitude > 0.001f ? hVel.normalized : Vector3.forward;
                         if (Mathf.Abs(appliedSpin.x) > 0.01f)
                         {
                             fwdDir    = Quaternion.AngleAxis(appliedSpin.x * 25f, Vector3.up) * fwdDir;
-                            retention *= Mathf.Lerp(1f, 0.7f, Mathf.Abs(appliedSpin.x));
+                            newFwdSpeed *= Mathf.Lerp(1f, 0.7f, Mathf.Abs(appliedSpin.x));
                         }
-                        newHoriz = fwdDir * (hVel.magnitude * retention);
+                        newHoriz = fwdDir * newFwdSpeed;
                     }
 
                     lastBounceUpVel = bounceUp;

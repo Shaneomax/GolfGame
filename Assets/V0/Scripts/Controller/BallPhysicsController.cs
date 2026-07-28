@@ -369,7 +369,7 @@ namespace GolfGame.Controllers
                 }
                 else if (bounceCount <= currentGround.MaxBounces)
                 {
-                    StartCoroutine(ApplySubsequentBounce());
+                    StartCoroutine(ApplySubsequentBounce(impactVelocity));
                 }
                 else
                 {
@@ -442,15 +442,16 @@ namespace GolfGame.Controllers
             rb.linearVelocity = new Vector3(newHorizontal.x, bounceUpVelocity, newHorizontal.z);
         }
 
-        private System.Collections.IEnumerator ApplySubsequentBounce()
+        private System.Collections.IEnumerator ApplySubsequentBounce(Vector3 impactVelocity)
         {
             yield return new WaitForFixedUpdate();
             if (rb == null) yield break;
 
             lastBounceUpVelocity *= currentGround.BounceDecayRatio;
 
-            Vector3 vel = rb.linearVelocity;
-            Vector3 horizontalVel = new Vector3(vel.x, 0f, vel.z);
+            // Use the actual impact velocity before the physics engine scrubbed it!
+            Vector3 horizontalVel = new Vector3(impactVelocity.x, 0f, impactVelocity.z);
+            float forwardSpeed = horizontalVel.magnitude;
 
             float forwardRetention = currentGround.ForwardRetentionPerBounce;
 
@@ -464,21 +465,22 @@ namespace GolfGame.Controllers
                 forwardRetention *= Mathf.Lerp(1f, MaxBackSpinForwardMultiplier, Mathf.Abs(_appliedSpin.y));
             }
 
+            float newForwardSpeed = forwardSpeed * forwardRetention;
+            
+            // CLAMP: Prevent topspin from artificially adding energy on subsequent bounces
+            newForwardSpeed = Mathf.Min(newForwardSpeed, forwardSpeed);
+
             Vector3 forwardDir = horizontalVel.sqrMagnitude > 0.001f ? horizontalVel.normalized : Vector3.forward;
             if (Mathf.Abs(_appliedSpin.x) > 0.01f)
             {
                 float sideAngle = _appliedSpin.x * 25.0f;
                 forwardDir = Quaternion.AngleAxis(sideAngle, Vector3.up) * forwardDir;
-                forwardRetention *= Mathf.Lerp(1f, 0.7f, Mathf.Abs(_appliedSpin.x));
+                newForwardSpeed *= Mathf.Lerp(1f, 0.7f, Mathf.Abs(_appliedSpin.x));
             }
 
-            Vector3 newHorizontal = forwardDir * (horizontalVel.magnitude * forwardRetention);
+            Vector3 newHorizontal = forwardDir * newForwardSpeed;
 
-            vel.x = newHorizontal.x;
-            vel.z = newHorizontal.z;
-            vel.y = lastBounceUpVelocity;
-
-            rb.linearVelocity = vel;
+            rb.linearVelocity = new Vector3(newHorizontal.x, lastBounceUpVelocity, newHorizontal.z);
         }
 
         private System.Collections.IEnumerator KillBounce()
