@@ -2,6 +2,7 @@ using UnityEngine;
 using GolfGame.Data;
 using GolfGame.Environment;
 using System.Collections.Generic;
+using DG.Tweening;
 
 namespace GolfGame.Controllers
 {
@@ -153,12 +154,32 @@ namespace GolfGame.Controllers
             if (other.CompareTag("Flag"))
             {
                 Debug.Log("[PlayerInput] Reached the flag! Ending the loop.");
+                
+                // Disable physics to let DOTween take over
                 rb.linearVelocity = Vector3.zero;
                 rb.angularVelocity = Vector3.zero;
-                rb.Sleep();
+                rb.isKinematic = true;
                 
+                if (ballCollider != null)
+                {
+                    ballCollider.enabled = false;
+                }
+
                 // Cancel any pending StopBall / DelayStateChange coroutines
                 StopAllCoroutines();
+
+                // Create a natural drop animation using DOTween
+                Vector3 holeCenter = other.transform.position;
+                Vector3 currentPos = transform.position;
+
+                Sequence dropSequence = DOTween.Sequence();
+                
+                // 1. Roll precisely to the X/Z center of the hole
+                dropSequence.Append(transform.DOMove(new Vector3(holeCenter.x, currentPos.y, holeCenter.z), 0.15f).SetEase(Ease.OutQuad));
+                
+                // 2. Drop down into the hole, bouncing slightly at the bottom
+                // Use currentPos.y (ground level) to ensure it drops DOWN into the cup, rather than flying up to the flag's pivot!
+                dropSequence.Append(transform.DOMoveY(currentPos.y - 0.12f, 0.35f).SetEase(Ease.OutBounce));
 
                 if (GameStateManager.Instance != null)
                     GameStateManager.Instance.ChangeState(GameStateManager.GameState.Resolution);
@@ -421,8 +442,9 @@ namespace GolfGame.Controllers
             }
 
             // FIX: Topspin reduces speed loss after bounce but must never ADD energy.
-            // If FirstBounceForwardKill * TopSpinMultiplier > 1 the ball was gaining speed — clamp that.
-            newForwardSpeed = Mathf.Min(newForwardSpeed, forwardSpeed);
+            // Ensure the ball always loses some speed to look natural, capping retention at 90% (or the ground's natural kill if it's higher).
+            float maxRetention = Mathf.Max(currentGround.FirstBounceForwardKill, 0.90f);
+            newForwardSpeed = Mathf.Min(newForwardSpeed, forwardSpeed * maxRetention);
 
             // HARD CLAMP FOR PHYSICS: Guarantee the bounce is realistic and matches the visual predictor.
             float absoluteMaxBounce = Mathf.Max(impactDownSpeed * 0.45f, 1.2f);
@@ -468,7 +490,9 @@ namespace GolfGame.Controllers
             float newForwardSpeed = forwardSpeed * forwardRetention;
             
             // CLAMP: Prevent topspin from artificially adding energy on subsequent bounces
-            newForwardSpeed = Mathf.Min(newForwardSpeed, forwardSpeed);
+            // Ensure the ball always loses some speed to look natural.
+            float maxRetention = Mathf.Max(currentGround.ForwardRetentionPerBounce, 0.90f);
+            newForwardSpeed = Mathf.Min(newForwardSpeed, forwardSpeed * maxRetention);
 
             Vector3 forwardDir = horizontalVel.sqrMagnitude > 0.001f ? horizontalVel.normalized : Vector3.forward;
             if (Mathf.Abs(_appliedSpin.x) > 0.01f)

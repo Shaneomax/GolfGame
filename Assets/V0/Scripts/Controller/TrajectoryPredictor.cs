@@ -171,7 +171,8 @@ namespace GolfGame.Controllers
                         else if (appliedSpin.y < 0) newFwdSpeed *= Mathf.Lerp(1f, physics.MaxBackSpinForwardMultiplier, Mathf.Abs(appliedSpin.y));
 
                         // FIX: Mirror the physics fix — topspin cannot add energy beyond the pre-bounce speed.
-                        newFwdSpeed = Mathf.Min(newFwdSpeed, fwdSpeed);
+                        float maxRetention = Mathf.Max(localGround.FirstBounceForwardKill, 0.90f);
+                        newFwdSpeed = Mathf.Min(newFwdSpeed, fwdSpeed * maxRetention);
 
                         float maxBounce = Mathf.Max(impactDown * 0.45f, 1.2f);
                         if (bounceUp > maxBounce) bounceUp = maxBounce;
@@ -193,7 +194,8 @@ namespace GolfGame.Controllers
                         else if (appliedSpin.y < 0) retention *= Mathf.Lerp(1f, physics.MaxBackSpinForwardMultiplier, Mathf.Abs(appliedSpin.y));
 
                         float newFwdSpeed = hVel.magnitude * retention;
-                        newFwdSpeed = Mathf.Min(newFwdSpeed, hVel.magnitude);
+                        float maxRetention = Mathf.Max(localGround.ForwardRetentionPerBounce, 0.90f);
+                        newFwdSpeed = Mathf.Min(newFwdSpeed, hVel.magnitude * maxRetention);
 
                         Vector3 fwdDir = hVel.sqrMagnitude > 0.001f ? hVel.normalized : Vector3.forward;
                         if (Mathf.Abs(appliedSpin.x) > 0.01f)
