@@ -126,6 +126,7 @@ namespace GolfGame.Controllers
                 rb.mass = currentBall.Mass;
                 rb.linearDamping = 0f; 
                 rb.angularDamping = 0.05f; 
+                rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
                 ApplyBounciness();
             }
         }
@@ -341,8 +342,16 @@ namespace GolfGame.Controllers
                 bounceCount++;
                 Vector3 impactVelocity = _lastVelocity;
 
+                bool isTerrain = collision.collider is TerrainCollider
+                              || collision.collider.GetComponent<TerrainCollider>() != null
+                              || collision.collider.GetComponent<Terrain>() != null
+                              || collision.gameObject.CompareTag("Terrain");
 
-                if (currentGround.MaxBounces <= 0)
+                if (!isTerrain && collision.contacts.Length > 0)
+                {
+                    StartCoroutine(ApplyObstacleBounce(impactVelocity, collision.contacts[0].normal));
+                }
+                else if (currentGround.MaxBounces <= 0)
                 {
                     // Sand/Mud logic - no bounces allowed
                     StartCoroutine(KillBounce());
@@ -370,6 +379,20 @@ namespace GolfGame.Controllers
 
             collisionCount++;
             isGrounded = collisionCount > 0;
+        }
+
+        private System.Collections.IEnumerator ApplyObstacleBounce(Vector3 impactVelocity, Vector3 hitNormal)
+        {
+            yield return new WaitForFixedUpdate();
+            if (rb == null) yield break;
+
+            // Match TrajectoryPredictor's reflection and energy loss
+            Vector3 vel = Vector3.Reflect(impactVelocity, hitNormal) * 0.5f;
+            rb.linearVelocity = vel;
+
+            // Reset bounce count so the subsequent terrain hit acts as a fresh landing
+            bounceCount = 0; 
+            lastBounceUpVelocity = vel.y;
         }
 
         private System.Collections.IEnumerator ApplyFirstBounce(Vector3 impactVelocity)
