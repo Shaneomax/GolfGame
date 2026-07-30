@@ -1,4 +1,4 @@
-﻿// Stylized Water 3 by Staggart Creations (http://staggart.xyz)
+// Stylized Water 3 by Staggart Creations (http://staggart.xyz)
 // COPYRIGHT PROTECTED UNDER THE UNITY ASSET STORE EULA (https://unity.com/legal/as-terms)
 //    • Copying or referencing source code for the production of new asset store, or public, content is strictly prohibited!
 //    • Uploading this file to a public repository will subject it to an automated DMCA takedown request.
@@ -221,10 +221,11 @@ namespace StylizedWater3
         }
         
         //Handles correct behaviour when double-clicking a .watershader asset. Should open in the IDE
+#if UNITY_6000_0_OR_NEWER
         [UnityEditor.Callbacks.OnOpenAsset]
-        public static bool OnOpenAsset(int instanceID, int line)
+        public static bool OnOpenAsset(UnityEngine.EntityId instanceID, int line)
         {
-            Object target = EditorUtility.InstanceIDToObject(instanceID);
+            Object target = EditorUtility.EntityIdToObject(instanceID);
 
             if (target is Shader)
             {
@@ -248,6 +249,35 @@ namespace StylizedWater3
             
             return false;
         }
+#else
+        [UnityEditor.Callbacks.OnOpenAsset]
+        public static bool OnOpenAsset(int instanceID, int line)
+        {
+            Object target = EditorUtility.InstanceIDToObject(instanceID);
+
+            if (target is Shader)
+            {
+                var path = AssetDatabase.GetAssetPath(instanceID);
+                
+                if (Path.GetExtension(path) != "." + TARGET_FILE_EXTENSION) return false;
+
+                string externalScriptEditor = ScriptEditorUtility.GetExternalScriptEditor();
+                
+                if (externalScriptEditor != "internal" && externalScriptEditor != string.Empty)
+                {
+                    InternalEditorUtility.OpenFileAtLineExternal(path, 0);
+                }
+                else
+                {
+                    AssetDatabase.OpenAsset(target, line);
+                }
+                
+                return true;
+            }
+            
+            return false;
+        }
+#endif
 
         public static WaterShaderImporter GetForShader(Shader shader)
         {

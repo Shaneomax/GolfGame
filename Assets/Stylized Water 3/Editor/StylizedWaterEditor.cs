@@ -1,4 +1,4 @@
-﻿// Stylized Water 3 by Staggart Creations (http://staggart.xyz)
+// Stylized Water 3 by Staggart Creations (http://staggart.xyz)
 // COPYRIGHT PROTECTED UNDER THE UNITY ASSET STORE EULA (https://unity.com/legal/as-terms)
 //    • Copying or referencing source code for the production of new asset store, or public, content is strictly prohibited!
 //    • Uploading this file to a public repository will subject it to an automated DMCA takedown request.
@@ -153,7 +153,11 @@ namespace StylizedWater3
         [MenuItem("Assets/Create/Water/Mesh")]
         private static void CreateWaterPlaneAsset()
         {
+#if UNITY_6000_0_OR_NEWER
+            ProjectWindowUtil.CreateAssetWithTextContent("New Watermesh.watermesh", "");
+#else
             ProjectWindowUtil.CreateAssetWithContent("New Watermesh.watermesh", "");
+#endif
         }
         
         [MenuItem("CONTEXT/Transform/Align To Water")]

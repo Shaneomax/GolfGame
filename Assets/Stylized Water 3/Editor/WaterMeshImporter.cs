@@ -1,4 +1,4 @@
-﻿// Stylized Water 3 by Staggart Creations (http://staggart.xyz)
+// Stylized Water 3 by Staggart Creations (http://staggart.xyz)
 // COPYRIGHT PROTECTED UNDER THE UNITY ASSET STORE EULA (https://unity.com/legal/as-terms)
 //    • Copying or referencing source code for the production of new asset store, or public, content is strictly prohibited!
 //    • Uploading this file to a public repository will subject it to an automated DMCA takedown request.
@@ -29,6 +29,25 @@ namespace StylizedWater3
         
         //Handles correct behaviour when double-clicking a .watermesh asset assigned to a field
         //Otherwise the OS prompts to open it
+#if UNITY_6000_0_OR_NEWER
+        [UnityEditor.Callbacks.OnOpenAsset]
+        public static bool OnOpenAsset(UnityEngine.EntityId instanceID, int line)
+        {
+            Object target = EditorUtility.EntityIdToObject(instanceID);
+
+            if (target is Mesh)
+            {
+                var path = AssetDatabase.GetAssetPath(instanceID);
+                
+                if (Path.GetExtension(path) != "." + FILE_EXTENSION) return false;
+
+                Selection.activeObject = target;
+                return true;
+            }
+            
+            return false;
+        }
+#else
         [UnityEditor.Callbacks.OnOpenAsset]
         public static bool OnOpenAsset(int instanceID, int line)
         {
@@ -46,6 +65,7 @@ namespace StylizedWater3
             
             return false;
         }
+#endif
 
     }
 }
