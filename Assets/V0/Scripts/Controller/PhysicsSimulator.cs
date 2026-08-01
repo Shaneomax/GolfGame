@@ -39,9 +39,10 @@ namespace GolfGame.Controllers
 
             foreach (var col in allColliders)
             {
-                // Only copy static environment colliders and Terrain to save performance
-                bool isTerrain = col is TerrainCollider;
-                if (!isTerrain && !col.gameObject.isStatic) continue;
+                // CRITICAL FIX: Only copy Terrain colliders so the ghost ball doesn't hit rocks!
+                // This allows the primary trajectory line to show the full arc to the hole, while PASS 2 handles rock bounces.
+                bool isTerrain = col is TerrainCollider || col.gameObject.CompareTag("Terrain");
+                if (!isTerrain) continue;
                 
                 // Do not copy triggers
                 if (col.isTrigger) continue;
@@ -101,14 +102,16 @@ namespace GolfGame.Controllers
 
         private GameObject reusableGhostBall;
 
-        public Vector3[] SimulateTrajectory(
+        public void SimulateTrajectory(
             GameObject ballPrefab, 
             Vector3 startPos, 
             Vector3 launchVelocity, 
             Vector2 appliedSpin,
             Vector3 flightRightDir,
-            int maxSteps = 150, 
-            float timeStep = 0.02f)
+            int maxSteps, 
+            float timeStep,
+            out Vector3[] pointsArray,
+            out Vector3[] velocitiesArray)
         {
             // 1. Manage reusable ghost ball
             if (reusableGhostBall == null)
@@ -152,7 +155,9 @@ namespace GolfGame.Controllers
             }
 
             List<Vector3> points = new List<Vector3>();
+            List<Vector3> velocities = new List<Vector3>();
             points.Add(startPos);
+            velocities.Add(launchVelocity);
 
             // 3. Step the simulation
             for (int i = 0; i < maxSteps; i++)
@@ -171,9 +176,11 @@ namespace GolfGame.Controllers
 
                 ghostPhysicsScene.Simulate(timeStep);
                 points.Add(rb.position);
+                velocities.Add(rb.linearVelocity);
             }
 
-            return points.ToArray();
+            pointsArray = points.ToArray();
+            velocitiesArray = velocities.ToArray();
         }
 
         private void OnDestroy()

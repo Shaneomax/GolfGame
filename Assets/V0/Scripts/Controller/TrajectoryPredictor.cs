@@ -103,27 +103,33 @@ namespace GolfGame.Controllers
                 int safeSteps = Mathf.Max(SimulationSteps, 500);
                 float safeTimeStep = 0.02f; // Force this to match FixedDeltaTime for accurate friction!
 
-                Vector3[] predictedPoints = PhysicsSimulator.Instance.SimulateTrajectory(
+                PhysicsSimulator.Instance.SimulateTrajectory(
                     this.gameObject,
                     startPosition,
                     launchVelocity,
                     appliedSpin,
                     flightRightDir,
                     safeSteps,
-                    safeTimeStep
+                    safeTimeStep,
+                    out pointsArray,
+                    out velocitiesArray
                 );
                 
-                lineRenderer.positionCount = predictedPoints.Length;
-                lineRenderer.SetPositions(predictedPoints);
+                lineRenderer.positionCount = pointsArray.Length;
+                lineRenderer.SetPositions(pointsArray);
                 lineRenderer.enabled = true;
+                
+                BallPhysicsController physics = GetComponent<BallPhysicsController>();
+                float drag = physics != null && physics.DefaultGround != null ? physics.DefaultGround.LinearDrag : 0.5f;
+
+                if (PostCollisionLineRenderer != null && physics != null)
+                    DetectAndDrawPostCollisionArc(pointsArray.Length, targetHeight, physics, drag);
             }
             else
             {
                 lineRenderer.enabled = false;
+                HidePostCollisionLine();
             }
-
-            // Hide the old legacy post collision line if it exists
-            HidePostCollisionLine();
         }
 
         public void HideTrajectory()
