@@ -240,13 +240,21 @@ namespace GolfGame.Controllers
 
         // --- RESTORED LOGIC END ---
 
+        public bool isGhostBall = false;
         private Vector3 _lastVelocity;
 
         private void FixedUpdate()
         {
+            ManualFixedUpdate();
+        }
+
+        public void ManualFixedUpdate()
+        {
             if (rb != null) _lastVelocity = rb.linearVelocity;
 
-            if (GameStateManager.Instance != null && GameStateManager.Instance.CurrentState == GameStateManager.GameState.Flight)
+            bool isFlightState = isGhostBall || (GameStateManager.Instance != null && GameStateManager.Instance.CurrentState == GameStateManager.GameState.Flight);
+
+            if (isFlightState)
             {
                 // --- NEW: IN-FLIGHT CURL PHYSICS ---
                 if (!isGrounded && Mathf.Abs(_appliedSpin.x) > 0.01f && bounceCount == 0)
@@ -358,7 +366,9 @@ namespace GolfGame.Controllers
             // ... The rest of your EXISTING flight and bounce logic remains exactly the same ...
 
             // --- EXISTING FLIGHT & BOUNCE LOGIC ---
-            if (GameStateManager.Instance != null && GameStateManager.Instance.CurrentState == GameStateManager.GameState.Flight)
+            bool isFlightState = isGhostBall || (GameStateManager.Instance != null && GameStateManager.Instance.CurrentState == GameStateManager.GameState.Flight);
+
+            if (isFlightState)
             {
                 bounceCount++;
                 Vector3 impactVelocity = _lastVelocity;
@@ -370,31 +380,36 @@ namespace GolfGame.Controllers
 
                 if (!isTerrain && collision.contacts.Length > 0)
                 {
-                    StartCoroutine(ApplyObstacleBounce(impactVelocity, collision.contacts[0].normal));
+                    if (isGhostBall) ExecuteObstacleBounce(impactVelocity, collision.contacts[0].normal);
+                    else StartCoroutine(ApplyObstacleBounce(impactVelocity, collision.contacts[0].normal));
                 }
                 else if (currentGround.MaxBounces <= 0)
                 {
                     // Sand/Mud logic - no bounces allowed
-                    StartCoroutine(KillBounce());
+                    if (isGhostBall) ExecuteKillBounce();
+                    else StartCoroutine(KillBounce());
                 }
                 else if (bounceCount == 1)
                 {
                     AimVisualsController aimVisuals = GetComponent<AimVisualsController>();
-                    if (aimVisuals != null)
+                    if (aimVisuals != null && !isGhostBall)
                     {
                         aimVisuals.ShrinkTrailOnBounce();
                     }
 
                     // First bounce logic
-                    StartCoroutine(ApplyFirstBounce(impactVelocity));
+                    if (isGhostBall) ExecuteFirstBounce(impactVelocity);
+                    else StartCoroutine(ApplyFirstBounce(impactVelocity));
                 }
                 else if (bounceCount <= currentGround.MaxBounces)
                 {
-                    StartCoroutine(ApplySubsequentBounce(impactVelocity));
+                    if (isGhostBall) ExecuteSubsequentBounce(impactVelocity);
+                    else StartCoroutine(ApplySubsequentBounce(impactVelocity));
                 }
                 else
                 {
-                    StartCoroutine(KillBounce());
+                    if (isGhostBall) ExecuteKillBounce();
+                    else StartCoroutine(KillBounce());
                 }
             }
 
@@ -405,13 +420,14 @@ namespace GolfGame.Controllers
         private System.Collections.IEnumerator ApplyObstacleBounce(Vector3 impactVelocity, Vector3 hitNormal)
         {
             yield return new WaitForFixedUpdate();
-            if (rb == null) yield break;
+            ExecuteObstacleBounce(impactVelocity, hitNormal);
+        }
 
-            // Match TrajectoryPredictor's reflection and energy loss
+        private void ExecuteObstacleBounce(Vector3 impactVelocity, Vector3 hitNormal)
+        {
+            if (rb == null) return;
             Vector3 vel = Vector3.Reflect(impactVelocity, hitNormal) * 0.5f;
             rb.linearVelocity = vel;
-
-            // Reset bounce count so the subsequent terrain hit acts as a fresh landing
             bounceCount = 0; 
             lastBounceUpVelocity = vel.y;
         }
@@ -419,7 +435,12 @@ namespace GolfGame.Controllers
         private System.Collections.IEnumerator ApplyFirstBounce(Vector3 impactVelocity)
         {
             yield return new WaitForFixedUpdate();
-            if (rb == null) yield break;
+            ExecuteFirstBounce(impactVelocity);
+        }
+
+        private void ExecuteFirstBounce(Vector3 impactVelocity)
+        {
+            if (rb == null) return;
 
             Vector3 horizontalVel = new Vector3(impactVelocity.x, 0f, impactVelocity.z);
             float forwardSpeed = horizontalVel.magnitude;
@@ -467,7 +488,12 @@ namespace GolfGame.Controllers
         private System.Collections.IEnumerator ApplySubsequentBounce(Vector3 impactVelocity)
         {
             yield return new WaitForFixedUpdate();
-            if (rb == null) yield break;
+            ExecuteSubsequentBounce(impactVelocity);
+        }
+
+        private void ExecuteSubsequentBounce(Vector3 impactVelocity)
+        {
+            if (rb == null) return;
 
             lastBounceUpVelocity *= currentGround.BounceDecayRatio;
 
@@ -510,7 +536,12 @@ namespace GolfGame.Controllers
         private System.Collections.IEnumerator KillBounce()
         {
             yield return new WaitForFixedUpdate();
-            if (rb == null) yield break;
+            ExecuteKillBounce();
+        }
+
+        private void ExecuteKillBounce()
+        {
+            if (rb == null) return;
 
             Vector3 vel = rb.linearVelocity;
             vel.y = 0f;

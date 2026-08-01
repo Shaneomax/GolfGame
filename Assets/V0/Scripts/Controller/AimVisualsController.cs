@@ -307,11 +307,9 @@ namespace GolfGame.Controllers
         {
             if (trajectoryPredictor != null && activeTargetMarker != null)
             {
-                // NEW: Push the starting point out by the ball's radius
-                Vector3 edgeStartPos = transform.position + (launchVelocity.normalized * _ballRadius);
                 // Subtracted MarkerYOffset so the trajectory line lands on the actual ground rather than on the floating marker height.
                 float groundY = activeTargetMarker.transform.position.y - MarkerYOffset;
-                trajectoryPredictor.ShowTrajectory(edgeStartPos, launchVelocity, groundY);
+                trajectoryPredictor.ShowTrajectory(transform.position, launchVelocity, groundY);
             }
         }
 

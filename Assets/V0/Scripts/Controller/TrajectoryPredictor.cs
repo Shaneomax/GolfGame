@@ -73,161 +73,57 @@ namespace GolfGame.Controllers
 
         public void ShowTrajectory(Vector3 startPosition, Vector3 launchVelocity, float targetHeight)
         {
-            BallPhysicsController physics = GetComponent<BallPhysicsController>();
-            if (physics == null || physics.DefaultGround == null) return;
-
-            float effectiveCurlAccel = physics.CurlAcceleration;
-            float drag               = physics.DefaultGround.LinearDrag;
-
-            int maxSteps = 800;
-            if (pointsArray    == null || pointsArray.Length    < maxSteps) pointsArray    = new Vector3[maxSteps];
-            if (velocitiesArray == null || velocitiesArray.Length < maxSteps) velocitiesArray = new Vector3[maxSteps];
-
+            if (lineRenderer == null) return;
+            
             Vector2 appliedSpin = GolfGame.UI.SpinInputUI.GlobalCurrentSpin;
-
+            
+            // Match PlayerInputController exactly: Curl should be perpendicular to the target, not the offset launch velocity!
+            Vector3 flightRightDir;
             AimVisualsController aimVisuals = GetComponent<AimVisualsController>();
-            Vector3 straightFlatDir = new Vector3(launchVelocity.x, 0f, launchVelocity.z).normalized;
             if (aimVisuals != null && aimVisuals.ActiveTargetMarker != null)
             {
-                Vector3 toTarget = aimVisuals.ActiveTargetMarker.transform.position - startPosition;
-                straightFlatDir  = new Vector3(toTarget.x, 0f, toTarget.z).normalized;
+                Vector3 toTarget = aimVisuals.ActiveTargetMarker.transform.position - transform.position;
+                Vector3 straightFlatDir = new Vector3(toTarget.x, 0f, toTarget.z).normalized;
+                flightRightDir = Vector3.Cross(Vector3.up, straightFlatDir).normalized;
             }
-            Vector3 flightRightDir = Vector3.Cross(Vector3.up, straightFlatDir).normalized;
-
-            // ─────────────────────────────────────────────────────────────────────
-            // PASS 1 — Simulate the full primary arc, completely ignoring any
-            //          physics objects.  Only terrain/ground stops it.
-            // ─────────────────────────────────────────────────────────────────────
-            int     validSteps          = 0;
-            int     currentBounce       = 0;
-            int     maxBounces          = 3;
-            float   lastBounceUpVel     = 0f;
-            Vector3 position            = startPosition;
-            Vector3 velocity            = launchVelocity;
-
-            for (int i = 0; i < maxSteps; i++)
+            else
             {
-                if (validSteps >= maxSteps) break;
-
-                // Record position AND velocity for each step
-                pointsArray[validSteps]    = position;
-                velocitiesArray[validSteps] = velocity;
-                validSteps++;
-
-                // 1. Ground height at current position
-                float currentGroundY = targetHeight;
-                if (Terrain.activeTerrain != null)
-                    currentGroundY = Terrain.activeTerrain.SampleHeight(position) + Terrain.activeTerrain.transform.position.y;
-
-                // 2. Curl (first arc only, while airborne)
-                if (position.y > currentGroundY + 0.05f && Mathf.Abs(appliedSpin.x) > 0.01f && currentBounce == 0)
-                    velocity += flightRightDir * (appliedSpin.x * effectiveCurlAccel) * TimeStep;
-
-                // 3. Air resistance
-                velocity *= Mathf.Clamp01(1f - drag * TimeStep);
-
-                // 4. Gravity → next position
-                velocity    += Physics.gravity * TimeStep;
-                Vector3 nextPos = position + velocity * TimeStep;
-
-                // 5. Ground height at next position
-                float nextGroundY = targetHeight;
-                if (Terrain.activeTerrain != null)
-                    nextGroundY = Terrain.activeTerrain.SampleHeight(nextPos) + Terrain.activeTerrain.transform.position.y;
-
-                // 6. Terrain bounce / stop
-                if (velocity.y <= 0f && nextPos.y <= nextGroundY)
-                {
-                    // Snap to ground — fixes the truncated arc end
-                    nextPos.y = nextGroundY;
-
-                    // Always record the precise landing point
-                    if (validSteps < maxSteps)
-                    {
-                        pointsArray[validSteps]    = nextPos;
-                        velocitiesArray[validSteps] = velocity;
-                        validSteps++;
-                    }
-
-                    currentBounce++;
-                    if (currentBounce >= maxBounces) break;
-
-                    // Bounce physics
-                    Vector3 hVel          = new Vector3(velocity.x, 0f, velocity.z);
-                    float   fwdSpeed      = hVel.magnitude;
-                    float   impactDown    = Mathf.Abs(velocity.y);
-                    GolfGame.Data.GroundData localGround = physics.GetGroundDataAtPosition(nextPos);
-
-                    float bounceUp   = 0f;
-                    Vector3 newHoriz = Vector3.zero;
-
-                    if (currentBounce == 1)
-                    {
-                        bounceUp = (impactDown * localGround.FirstBounceImpactScale)
-                                 + (fwdSpeed   * localGround.ForwardToBounceConversion);
-
-                        float newFwdSpeed = fwdSpeed * localGround.FirstBounceForwardKill;
-                        if (appliedSpin.y > 0)  newFwdSpeed *= Mathf.Lerp(1f, physics.MaxTopSpinForwardMultiplier,              appliedSpin.y);
-                        else if (appliedSpin.y < 0) newFwdSpeed *= Mathf.Lerp(1f, physics.MaxBackSpinForwardMultiplier, Mathf.Abs(appliedSpin.y));
-
-                        // FIX: Mirror the physics fix — topspin cannot add energy beyond the pre-bounce speed.
-                        float maxRetention = Mathf.Max(localGround.FirstBounceForwardKill, 0.90f);
-                        newFwdSpeed = Mathf.Min(newFwdSpeed, fwdSpeed * maxRetention);
-
-                        float maxBounce = Mathf.Max(impactDown * 0.45f, 1.2f);
-                        if (bounceUp > maxBounce) bounceUp = maxBounce;
-
-                        Vector3 fwdDir = hVel.sqrMagnitude > 0.001f ? hVel.normalized : flightRightDir;
-                        if (Mathf.Abs(appliedSpin.x) > 0.01f)
-                        {
-                            fwdDir    = Quaternion.AngleAxis(appliedSpin.x * 45f, Vector3.up) * fwdDir;
-                            newFwdSpeed *= Mathf.Lerp(1f, 0.4f, Mathf.Abs(appliedSpin.x));
-                        }
-                        newHoriz = fwdDir * newFwdSpeed;
-                    }
-                    else
-                    {
-                        lastBounceUpVel *= Mathf.Clamp(localGround.BounceDecayRatio, 0f, 0.9f);
-                        bounceUp         = lastBounceUpVel;
-                        float retention  = localGround.ForwardRetentionPerBounce;
-                        if (appliedSpin.y > 0)  retention *= Mathf.Lerp(1f, physics.MaxTopSpinForwardMultiplier,              appliedSpin.y);
-                        else if (appliedSpin.y < 0) retention *= Mathf.Lerp(1f, physics.MaxBackSpinForwardMultiplier, Mathf.Abs(appliedSpin.y));
-
-                        float newFwdSpeed = hVel.magnitude * retention;
-                        float maxRetention = Mathf.Max(localGround.ForwardRetentionPerBounce, 0.90f);
-                        newFwdSpeed = Mathf.Min(newFwdSpeed, hVel.magnitude * maxRetention);
-
-                        Vector3 fwdDir = hVel.sqrMagnitude > 0.001f ? hVel.normalized : Vector3.forward;
-                        if (Mathf.Abs(appliedSpin.x) > 0.01f)
-                        {
-                            fwdDir    = Quaternion.AngleAxis(appliedSpin.x * 25f, Vector3.up) * fwdDir;
-                            newFwdSpeed *= Mathf.Lerp(1f, 0.7f, Mathf.Abs(appliedSpin.x));
-                        }
-                        newHoriz = fwdDir * newFwdSpeed;
-                    }
-
-                    lastBounceUpVel = bounceUp;
-                    velocity        = new Vector3(newHoriz.x, bounceUp, newHoriz.z);
-                    position        = nextPos;
-                }
-                else
-                {
-                    position = nextPos;
-                }
+                flightRightDir = Vector3.Cross(Vector3.up, new Vector3(launchVelocity.x, 0, launchVelocity.z)).normalized;
             }
 
-            // Apply primary line (full arc, ignores all objects)
-            lineRenderer.positionCount = validSteps;
-            lineRenderer.SetPositions(pointsArray);
-            lineRenderer.enabled = true;
+            if (PhysicsSimulator.Instance == null)
+            {
+                GameObject simObj = new GameObject("PhysicsSimulator");
+                simObj.AddComponent<PhysicsSimulator>();
+            }
 
-            // ─────────────────────────────────────────────────────────────────────
-            // PASS 2 — Walk the stored primary arc segments and SphereCast for the
-            //          first non-terrain physics object hit.
-            //          The primary line is NEVER affected by this scan.
-            // ─────────────────────────────────────────────────────────────────────
-            if (PostCollisionLineRenderer != null)
-                DetectAndDrawPostCollisionArc(validSteps, targetHeight, physics, drag);
+            if (PhysicsSimulator.Instance != null)
+            {
+                // Enforce safe minimums in case the Inspector cached the old values
+                int safeSteps = Mathf.Max(SimulationSteps, 500);
+                float safeTimeStep = 0.02f; // Force this to match FixedDeltaTime for accurate friction!
+
+                Vector3[] predictedPoints = PhysicsSimulator.Instance.SimulateTrajectory(
+                    this.gameObject,
+                    startPosition,
+                    launchVelocity,
+                    appliedSpin,
+                    flightRightDir,
+                    safeSteps,
+                    safeTimeStep
+                );
+                
+                lineRenderer.positionCount = predictedPoints.Length;
+                lineRenderer.SetPositions(predictedPoints);
+                lineRenderer.enabled = true;
+            }
+            else
+            {
+                lineRenderer.enabled = false;
+            }
+
+            // Hide the old legacy post collision line if it exists
+            HidePostCollisionLine();
         }
 
         public void HideTrajectory()
