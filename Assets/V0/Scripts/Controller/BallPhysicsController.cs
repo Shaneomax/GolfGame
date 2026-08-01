@@ -87,12 +87,16 @@ namespace GolfGame.Controllers
         
         private GroundData currentGround;
         public GroundData CurrentGround => currentGround;
+        
+        public string LastHitTag { get; private set; } = "Untagged";
+        public bool HasHitGreen { get; private set; } = false;
 
         private void Awake()
         {
             rb = GetComponent<Rigidbody>();
             ballCollider = GetComponent<Collider>();
             currentGround = DefaultGround;
+            HasHitGreen = false;
         }
 
         // --- RESTORED LOGIC START ---
@@ -116,6 +120,8 @@ namespace GolfGame.Controllers
             // true from the previous shot — resetting lets the FixedUpdate friction
             // logic recalculate cleanly on the first frame.
             collisionCount = 0;
+            LastHitTag = "Untagged";
+            HasHitGreen = false;
             isGrounded = false;
             rb.WakeUp();
         }
@@ -329,6 +335,7 @@ namespace GolfGame.Controllers
         private void OnCollisionEnter(Collision collision)
         {
             currentGround = DefaultGround; // Reset to default initially
+            LastHitTag = collision.gameObject.tag; // Track the raw tag for ghost ball logic
             
             // 1. Check if we hit a Unity Terrain
             Terrain hitTerrain = collision.gameObject.GetComponent<Terrain>();
@@ -361,6 +368,13 @@ namespace GolfGame.Controllers
                         break; 
                     }
                 }
+            }
+
+            if (collision.gameObject.CompareTag("NiceOn") || 
+                LayerMask.LayerToName(collision.gameObject.layer) == "NiceOn" || 
+                (currentGround != null && currentGround.IsNiceOn))
+            {
+                HasHitGreen = true;
             }
 
             // ... The rest of your EXISTING flight and bounce logic remains exactly the same ...

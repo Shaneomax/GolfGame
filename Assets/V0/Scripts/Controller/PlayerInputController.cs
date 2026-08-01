@@ -136,6 +136,7 @@ namespace GolfGame.Controllers
                 // so hide it to keep the screen clean.
                 if (IsPuttingMode() && AimVisuals != null)
                 {
+                    AimVisuals.HideTrajectory(); // Hide flight trajectory line!
                     if (AimVisuals.ActiveTargetMarker != null)
                         AimVisuals.ActiveTargetMarker.SetActive(false);
                 }
@@ -143,6 +144,8 @@ namespace GolfGame.Controllers
             else if (newState == GameStateManager.GameState.Flight)
             {
                 if (PhysicsController != null) PhysicsController.NotifyFlightStarted();
+                // Always hide the trajectory the moment the ball is launched
+                if (AimVisuals != null) AimVisuals.HideTrajectory();
             }
         }
         
@@ -222,10 +225,26 @@ namespace GolfGame.Controllers
             var state = GameStateManager.Instance.CurrentState;
             if (state == GameStateManager.GameState.Setup)
             {
+                if (IsPuttingMode())
+                {
+                    if (AimVisuals != null) AimVisuals.HideTrajectory();
+                    return; // Don't draw flight trajectory on the green!
+                }
+                
                 if (AimVisuals != null && AimVisuals.ActiveTargetMarker != null)
                 {
                     Vector3 launchVelocity = CalculateVelocityToHitTarget(AimVisuals.ActiveTargetMarker.transform.position);
                     AimVisuals.ShowTrajectory(launchVelocity);
+                }
+            }
+            else if (state == GameStateManager.GameState.Aiming)
+            {
+                // CRITICAL FIX: When putting, forcibly kill the flight trajectory every single frame.
+                // The trajectory can be drawn during the brief Setup state before currentGround is set
+                // to NiceOn, and it persists. This ensures it is always hidden while putting.
+                if (IsPuttingMode() && AimVisuals != null)
+                {
+                    AimVisuals.HideTrajectory();
                 }
             }
         }

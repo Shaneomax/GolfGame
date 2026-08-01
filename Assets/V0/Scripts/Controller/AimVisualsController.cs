@@ -363,6 +363,10 @@ namespace GolfGame.Controllers
 
         public void UpdatePuttingLine(float dragMagnitude, float overpowerRatio, Vector3 startPos, float dragAngle)
         {
+            // CRITICAL FIX: Always hide the flight trajectory arc when putting.
+            // The putting drag line and the flight arc are two separate LineRenderers and must never show together.
+            HideTrajectory();
+            
             // NEW SAFETY: Hide line if drag magnitude is effectively zero
             if (dragMagnitude < 0.05f)
             {
@@ -398,7 +402,7 @@ namespace GolfGame.Controllers
             Vector3 endPoint = centerStartPos + (finalAimDir * (dragMagnitude * puttingVisualMultiplier));
             endPoint.y = centerStartPos.y;
             
-            DragLineRenderer.SetPosition(0, edgeStartPos); // Updated this line
+            DragLineRenderer.SetPosition(0, edgeStartPos);
             DragLineRenderer.SetPosition(1, endPoint);
         }
 

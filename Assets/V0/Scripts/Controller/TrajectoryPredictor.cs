@@ -192,12 +192,15 @@ namespace GolfGame.Controllers
                          hit.collider.transform.IsChildOf(targetMarker.transform)))
                         continue;
 
-                    // ── Skip terrain ──────────────────────────────────────────────
+                    // ── Skip terrain & putting greens ──────────────────────────────────────────────
                     // TerrainCollider is the definitive Unity terrain physics type.
                     bool isTerrain = hit.collider is TerrainCollider
                                   || hit.collider.GetComponent<TerrainCollider>() != null
                                   || hit.collider.GetComponent<Terrain>() != null
-                                  || hit.collider.CompareTag("Terrain");
+                                  || hit.collider.CompareTag("Terrain")
+                                  || hit.collider.CompareTag("NiceOn")
+                                  || LayerMask.LayerToName(hit.collider.gameObject.layer) == "NiceOn"
+                                  || LayerMask.LayerToName(hit.collider.gameObject.layer) == "Terrain"; // Ignore the green so it doesn't trigger a "rock bounce" line
                     if (isTerrain) continue;
 
                     // Found a real non-terrain, non-marker physics object
