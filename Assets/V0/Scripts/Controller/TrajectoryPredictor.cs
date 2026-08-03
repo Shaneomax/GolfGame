@@ -115,6 +115,14 @@ namespace GolfGame.Controllers
                     out velocitiesArray
                 );
                 
+                // --- TRUNCATE THE ARRAYS AT THE FLAG ---
+                int impactIndex = FindFirstBounceOnFlag(pointsArray);
+                if (impactIndex >= 0 && impactIndex < pointsArray.Length)
+                {
+                    System.Array.Resize(ref pointsArray, impactIndex + 1);
+                    System.Array.Resize(ref velocitiesArray, impactIndex + 1);
+                }
+
                 lineRenderer.positionCount = pointsArray.Length;
                 lineRenderer.SetPositions(pointsArray);
                 lineRenderer.enabled = true;
@@ -142,6 +150,30 @@ namespace GolfGame.Controllers
         #endregion
 
         #region Private Helpers
+
+        private int FindFirstBounceOnFlag(Vector3[] points)
+        {
+            int checkLayerMask = ~0; // Check ALL layers
+            
+            for (int i = 5; i < points.Length; i++)
+            {
+                Vector3 pos = points[i];
+                // CRITICAL: We MUST use QueryTriggerInteraction.Collide to detect the Flag, because it is a Trigger!
+                Collider[] overlaps = Physics.OverlapSphere(pos, 0.2f, checkLayerMask, QueryTriggerInteraction.Collide);
+                
+                foreach (Collider col in overlaps)
+                {
+                    // Skip the player/ball
+                    if (col.gameObject == gameObject) continue;
+                    
+                    if (col.gameObject.CompareTag("Flag"))
+                    {
+                        return i;
+                    }
+                }
+            }
+            return -1;
+        }
 
         /// <summary>
         /// Walks the already-computed primary arc (pointsArray / velocitiesArray)
@@ -197,10 +229,19 @@ namespace GolfGame.Controllers
                     bool isTerrain = hit.collider is TerrainCollider
                                   || hit.collider.GetComponent<TerrainCollider>() != null
                                   || hit.collider.GetComponent<Terrain>() != null
-                                  || hit.collider.CompareTag("Terrain")
-                                  || hit.collider.CompareTag("NiceOn")
-                                  || LayerMask.LayerToName(hit.collider.gameObject.layer) == "NiceOn"
-                                  || LayerMask.LayerToName(hit.collider.gameObject.layer) == "Terrain"; // Ignore the green so it doesn't trigger a "rock bounce" line
+                                  || hit.collider.CompareTag("Terrain");
+
+                    Transform current = hit.collider.transform;
+                    while (current != null)
+                    {
+                        if (current.gameObject.CompareTag("NiceOn") || LayerMask.LayerToName(current.gameObject.layer).Equals("NiceOn", System.StringComparison.OrdinalIgnoreCase) ||
+                            current.gameObject.CompareTag("Terrain") || LayerMask.LayerToName(current.gameObject.layer).Equals("Terrain", System.StringComparison.OrdinalIgnoreCase))
+                        {
+                            isTerrain = true;
+                            break;
+                        }
+                        current = current.parent;
+                    }
                     if (isTerrain) continue;
 
                     // Found a real non-terrain, non-marker physics object

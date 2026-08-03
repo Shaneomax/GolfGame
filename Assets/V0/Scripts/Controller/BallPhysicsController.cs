@@ -392,6 +392,18 @@ namespace GolfGame.Controllers
                               || collision.collider.GetComponent<Terrain>() != null
                               || collision.gameObject.CompareTag("Terrain");
 
+                Transform current = collision.collider.transform;
+                while (current != null)
+                {
+                    if (current.gameObject.CompareTag("NiceOn") || LayerMask.LayerToName(current.gameObject.layer).Equals("NiceOn", System.StringComparison.OrdinalIgnoreCase) ||
+                        current.gameObject.CompareTag("Terrain") || LayerMask.LayerToName(current.gameObject.layer).Equals("Terrain", System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        isTerrain = true;
+                        break;
+                    }
+                    current = current.parent;
+                }
+
                 if (!isTerrain && collision.contacts.Length > 0)
                 {
                     if (isGhostBall) ExecuteObstacleBounce(impactVelocity, collision.contacts[0].normal);
