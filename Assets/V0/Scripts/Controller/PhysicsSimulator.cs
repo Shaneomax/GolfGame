@@ -36,26 +36,59 @@ namespace GolfGame.Controllers
         private void DuplicateEnvironment()
         {
             Collider[] allColliders = FindObjectsByType<Collider>(FindObjectsSortMode.None);
-
-            foreach (var col in allColliders)
+            foreach (var col in UnityEngine.Object.FindObjectsByType<Collider>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
             {
                 // CRITICAL FIX: Only copy Terrain colliders so the ghost ball doesn't hit rocks!
-                // This allows the primary trajectory line to show the full arc to the hole, while PASS 2 handles rock bounces.
-                bool isTerrain = col is TerrainCollider || col.gameObject.CompareTag("Terrain") || col.gameObject.CompareTag("NiceOn");
+                // Walk the parent tree so if a custom green has NiceOn on its parent, we still copy it.
+                bool isTerrain = col is TerrainCollider || col.gameObject.CompareTag("Terrain");
+                Transform checkTerrainParent = col.transform;
+                while (checkTerrainParent != null && !isTerrain)
+                {
+                    if (checkTerrainParent.CompareTag("NiceOn") || LayerMask.LayerToName(checkTerrainParent.gameObject.layer).Equals("NiceOn", System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        isTerrain = true;
+                        break;
+                    }
+                    checkTerrainParent = checkTerrainParent.parent;
+                }
                 if (!isTerrain) continue;
                 
                 // Do not copy triggers
                 if (col.isTrigger) continue;
 
+                // Do not copy aiming helpers like the Target Marker or the Ball Pivot, 
+                // otherwise the ghost ball will hit them and bounce backwards!
+                if (col.gameObject.name.Contains("Marker") || col.gameObject.name.Contains("Pivot") || col.gameObject.name.Contains("GolfBall"))
+                    continue;
+
                 // Create an empty GameObject for the physics representation
                 GameObject ghostObj = new GameObject(col.name + "_Ghost");
-                ghostObj.layer = col.gameObject.layer;
-                try {
-                    ghostObj.tag = col.gameObject.tag;
-                } catch {
-                    // Ignore if tag doesn't exist
-                }
                 
+                // Fix: Walk up the parent hierarchy to see if any parent has the NiceOn tag or layer, 
+                // since the user's custom green might have the tag on the parent object.
+                bool isNiceOn = false;
+                Transform checkParent = col.transform;
+                while (checkParent != null)
+                {
+                    if (checkParent.CompareTag("NiceOn") || LayerMask.LayerToName(checkParent.gameObject.layer).Equals("NiceOn", System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        isNiceOn = true;
+                        break;
+                    }
+                    checkParent = checkParent.parent;
+                }
+
+                if (isNiceOn)
+                {
+                    int niceOnLayer = LayerMask.NameToLayer("NiceOn");
+                    ghostObj.layer = niceOnLayer != -1 ? niceOnLayer : col.gameObject.layer;
+                    try { ghostObj.tag = "NiceOn"; } catch { }
+                }
+                else
+                {
+                    ghostObj.layer = col.gameObject.layer;
+                    try { ghostObj.tag = col.gameObject.tag; } catch { }
+                }
                 // Match position and rotation exactly
                 ghostObj.transform.position = col.transform.position;
                 ghostObj.transform.rotation = col.transform.rotation;
@@ -116,7 +149,8 @@ namespace GolfGame.Controllers
             int maxSteps, 
             float timeStep,
             out Vector3[] pointsArray,
-            out Vector3[] velocitiesArray)
+            out Vector3[] velocitiesArray,
+            out bool landedOnGreen)
         {
             // 1. Manage reusable ghost ball
             if (reusableGhostBall == null)
@@ -164,42 +198,11 @@ namespace GolfGame.Controllers
             points.Add(startPos);
             velocities.Add(launchVelocity);
 
-            // ── Cache all NiceOn objects from the REAL scene for bounds checking ──
-            // This bypasses ALL physics-based detection (raycasts, collisions) which
-            // have proven unreliable in the ghost physics scene.
-            GameObject[] niceOnObjects = GameObject.FindGameObjectsWithTag("NiceOn");
-            Debug.Log($"[PhysicsSimulator] Found {niceOnObjects.Length} NiceOn-tagged objects for green detection.");
-            
-            Bounds[] niceOnBounds = new Bounds[niceOnObjects.Length];
-            for (int n = 0; n < niceOnObjects.Length; n++)
-            {
-                Collider col = niceOnObjects[n].GetComponent<Collider>();
-                if (col != null)
-                {
-                    niceOnBounds[n] = col.bounds;
-                    Debug.Log($"[PhysicsSimulator] NiceOn[{n}] '{niceOnObjects[n].name}' bounds: center={col.bounds.center}, size={col.bounds.size}");
-                }
-                else
-                {
-                    Renderer rend = niceOnObjects[n].GetComponent<Renderer>();
-                    if (rend != null)
-                    {
-                        niceOnBounds[n] = rend.bounds;
-                        Debug.Log($"[PhysicsSimulator] NiceOn[{n}] '{niceOnObjects[n].name}' renderer bounds: center={rend.bounds.center}, size={rend.bounds.size}");
-                    }
-                    else
-                    {
-                        niceOnBounds[n] = new Bounds(niceOnObjects[n].transform.position, Vector3.zero);
-                        Debug.Log($"[PhysicsSimulator] NiceOn[{n}] '{niceOnObjects[n].name}' has NO collider or renderer!");
-                    }
-                }
-            }
-
             // 3. Step the simulation
             bool hasLandedOnGreen = false;
             for (int i = 0; i < maxSteps; i++)
             {
-                // Ball stopped
+                // Ball stopped naturally
                 if (rb.linearVelocity.sqrMagnitude <= 0.001f && i > 10)
                 {
                     break;
@@ -217,39 +220,17 @@ namespace GolfGame.Controllers
                 points.Add(ballPos);
                 velocities.Add(rb.linearVelocity);
 
-                // ── NiceOn detection via BOUNDS CHECK (no physics!) ─────────────
-                // Check if the ball's XZ position is within the bounding box of any
-                // NiceOn-tagged object AND the ball is near the surface height.
-                if (i > 5 && rb.linearVelocity.y <= 0f)
+                // Use the ghost ball's actual collision logic to detect if it landed on the green.
+                // Since ghost scene duplication accurately mirrors tags/layers now, this is 100% reliable!
+                if (physicsController != null && physicsController.HasHitGreen)
                 {
-                    for (int n = 0; n < niceOnBounds.Length; n++)
-                    {
-                        Bounds b = niceOnBounds[n];
-                        if (b.size == Vector3.zero) continue;
-                        
-                        // Check XZ containment and Y proximity (ball should be near the top of the green)
-                        bool inXZ = ballPos.x >= b.min.x && ballPos.x <= b.max.x &&
-                                    ballPos.z >= b.min.z && ballPos.z <= b.max.z;
-                        bool nearY = ballPos.y <= b.max.y + 3f; // Ball is within 3m above the green surface
-                        
-                        if (inXZ && nearY)
-                        {
-                            hasLandedOnGreen = true;
-                            Debug.Log($"[PhysicsSimulator] Ball at {ballPos} is over NiceOn '{niceOnObjects[n].name}' at step {i}. STOPPING trajectory.");
-                            break;
-                        }
-                    }
-                    if (hasLandedOnGreen) break;
+                    hasLandedOnGreen = true;
                 }
-            }
-
-            if (!hasLandedOnGreen && niceOnObjects.Length > 0)
-            {
-                Debug.Log($"[PhysicsSimulator] WARNING: Ball never detected over any NiceOn object! Final ball pos: {rb.position}, total points: {points.Count}");
             }
 
             pointsArray = points.ToArray();
             velocitiesArray = velocities.ToArray();
+            landedOnGreen = hasLandedOnGreen;
         }
 
         private void OnDestroy()

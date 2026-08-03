@@ -375,6 +375,23 @@ namespace GolfGame.Controllers
                 (currentGround != null && currentGround.IsNiceOn))
             {
                 HasHitGreen = true;
+                
+                // CRITICAL FIX: If we hit a NiceOn tag but the layer was Default, currentGround is still DefaultGround.
+                // We MUST force the currentGround to be the NiceOn surface data so it behaves like the green!
+                if (currentGround == null || !currentGround.IsNiceOn)
+                {
+                    if (TerrainTextureMappings != null)
+                    {
+                        foreach (var mapping in TerrainTextureMappings)
+                        {
+                            if (mapping.SurfaceData != null && mapping.SurfaceData.IsNiceOn)
+                            {
+                                currentGround = mapping.SurfaceData;
+                                break;
+                            }
+                        }
+                    }
+                }
             }
 
             // ... The rest of your EXISTING flight and bounce logic remains exactly the same ...
@@ -390,7 +407,10 @@ namespace GolfGame.Controllers
                 bool isTerrain = collision.collider is TerrainCollider
                               || collision.collider.GetComponent<TerrainCollider>() != null
                               || collision.collider.GetComponent<Terrain>() != null
-                              || collision.gameObject.CompareTag("Terrain");
+                              || collision.gameObject.CompareTag("Terrain")
+                              || collision.gameObject.CompareTag("NiceOn")
+                              || LayerMask.LayerToName(collision.gameObject.layer).Equals("NiceOn", System.StringComparison.OrdinalIgnoreCase)
+                              || LayerMask.LayerToName(collision.gameObject.layer).Equals("Terrain", System.StringComparison.OrdinalIgnoreCase);
 
                 if (!isTerrain && collision.contacts.Length > 0)
                 {

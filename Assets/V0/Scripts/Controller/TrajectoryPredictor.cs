@@ -112,7 +112,8 @@ namespace GolfGame.Controllers
                     safeSteps,
                     safeTimeStep,
                     out pointsArray,
-                    out velocitiesArray
+                    out velocitiesArray,
+                    out bool landedOnGreen
                 );
                 
                 lineRenderer.positionCount = pointsArray.Length;
@@ -122,8 +123,10 @@ namespace GolfGame.Controllers
                 BallPhysicsController physics = GetComponent<BallPhysicsController>();
                 float drag = physics != null && physics.DefaultGround != null ? physics.DefaultGround.LinearDrag : 0.5f;
 
-                if (PostCollisionLineRenderer != null && physics != null)
+                if (!landedOnGreen && PostCollisionLineRenderer != null && physics != null)
                     DetectAndDrawPostCollisionArc(pointsArray.Length, targetHeight, physics, drag);
+                else
+                    HidePostCollisionLine();
             }
             else
             {
@@ -192,15 +195,34 @@ namespace GolfGame.Controllers
                          hit.collider.transform.IsChildOf(targetMarker.transform)))
                         continue;
 
+                    // ── Skip the Flag (and its children) ─────────────────────────
+                    bool isFlag = false;
+                    Transform flagCheck = hit.collider.transform;
+                    while (flagCheck != null)
+                    {
+                        if (flagCheck.CompareTag("Flag")) { isFlag = true; break; }
+                        flagCheck = flagCheck.parent;
+                    }
+                    if (isFlag) continue;
+
                     // ── Skip terrain & putting greens ──────────────────────────────────────────────
                     // TerrainCollider is the definitive Unity terrain physics type.
                     bool isTerrain = hit.collider is TerrainCollider
                                   || hit.collider.GetComponent<TerrainCollider>() != null
-                                  || hit.collider.GetComponent<Terrain>() != null
-                                  || hit.collider.CompareTag("Terrain")
-                                  || hit.collider.CompareTag("NiceOn")
-                                  || LayerMask.LayerToName(hit.collider.gameObject.layer) == "NiceOn"
-                                  || LayerMask.LayerToName(hit.collider.gameObject.layer) == "Terrain"; // Ignore the green so it doesn't trigger a "rock bounce" line
+                                  || hit.collider.GetComponent<Terrain>() != null;
+
+                    Transform checkTransform = hit.collider.transform;
+                    while (checkTransform != null && !isTerrain)
+                    {
+                        if (checkTransform.CompareTag("Terrain") || checkTransform.CompareTag("NiceOn") ||
+                            LayerMask.LayerToName(checkTransform.gameObject.layer) == "NiceOn" ||
+                            LayerMask.LayerToName(checkTransform.gameObject.layer) == "Terrain")
+                        {
+                            isTerrain = true;
+                            break;
+                        }
+                        checkTransform = checkTransform.parent;
+                    }
                     if (isTerrain) continue;
 
                     // Found a real non-terrain, non-marker physics object
