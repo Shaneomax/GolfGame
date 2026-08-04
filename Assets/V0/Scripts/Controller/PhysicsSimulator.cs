@@ -38,13 +38,23 @@ namespace GolfGame.Controllers
             Collider[] allColliders = FindObjectsByType<Collider>(FindObjectsSortMode.None);
             foreach (var col in UnityEngine.Object.FindObjectsByType<Collider>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
             {
-                // CRITICAL FIX: Only copy Terrain colliders so the ghost ball doesn't hit rocks!
-                // Walk the parent tree so if a custom green has NiceOn on its parent, we still copy it.
-                bool isTerrain = col is TerrainCollider || col.gameObject.CompareTag("Terrain");
+                // Explicitly exclude the Flag! Even if it is a child of the Hole, we DO NOT 
+                // want it in the ghost scene. If the ghost ball hits it, it will bounce 
+                // backward and cause the trajectory line to double back on itself.
+                if (col.gameObject.CompareTag("Flag") || col.gameObject.name.IndexOf("Flag", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    continue;
+
+                // Only copy ground surfaces into the ghost scene.
+                // The Flag is a TRIGGER in the real game (OnTriggerEnter detects it),
+                // so it must NOT be copied as a solid wall — otherwise the ghost ball
+                // bounces off it and the trajectory line doubles back on itself.
+                bool isTerrain = col is TerrainCollider || col.gameObject.CompareTag("Terrain") || col.gameObject.name.IndexOf("Hole", System.StringComparison.OrdinalIgnoreCase) >= 0;
                 Transform checkTerrainParent = col.transform;
                 while (checkTerrainParent != null && !isTerrain)
                 {
-                    if (checkTerrainParent.CompareTag("NiceOn") || LayerMask.LayerToName(checkTerrainParent.gameObject.layer).Equals("NiceOn", System.StringComparison.OrdinalIgnoreCase))
+                    if (checkTerrainParent.CompareTag("NiceOn") || 
+                        LayerMask.LayerToName(checkTerrainParent.gameObject.layer).Equals("NiceOn", System.StringComparison.OrdinalIgnoreCase) ||
+                        checkTerrainParent.name.IndexOf("Hole", System.StringComparison.OrdinalIgnoreCase) >= 0)
                     {
                         isTerrain = true;
                         break;
@@ -150,7 +160,8 @@ namespace GolfGame.Controllers
             float timeStep,
             out Vector3[] pointsArray,
             out Vector3[] velocitiesArray,
-            out bool landedOnGreen)
+            out bool landedOnGreen,
+            out bool hasBounced)
         {
             // 1. Manage reusable ghost ball
             if (reusableGhostBall == null)
@@ -216,6 +227,14 @@ namespace GolfGame.Controllers
 
                 ghostPhysicsScene.Simulate(timeStep);
                 
+                // CRITICAL FIX: If the ball starts traveling backwards (e.g. hits the back of the hole cup 
+                // or bounces off the flag pole), STOP simulating! This prevents the trajectory line 
+                // from drawing a bounce-back or knot inside the hole, which looks like a double-line.
+                if (i > 5 && Vector3.Dot(rb.linearVelocity.normalized, launchVelocity.normalized) < -0.1f)
+                {
+                    break;
+                }
+                
                 Vector3 ballPos = rb.position;
                 points.Add(ballPos);
                 velocities.Add(rb.linearVelocity);
@@ -231,6 +250,7 @@ namespace GolfGame.Controllers
             pointsArray = points.ToArray();
             velocitiesArray = velocities.ToArray();
             landedOnGreen = hasLandedOnGreen;
+            hasBounced = physicsController != null && physicsController.BounceCount > 0;
         }
 
         private void OnDestroy()

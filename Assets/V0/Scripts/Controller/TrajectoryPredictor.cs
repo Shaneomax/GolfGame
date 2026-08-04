@@ -49,6 +49,11 @@ namespace GolfGame.Controllers
         // Post-collision arc points
         private Vector3[] postCollisionPoints;
 
+        // Cached last-known-good trajectory to prevent flickering from non-deterministic ghost physics
+        private Vector3[] cachedGoodTrajectory;
+        private Vector3 lastStartPosition;
+        private Vector3 lastLaunchVelocity;
+
         #endregion
 
         #region Unity Lifecycle
@@ -113,20 +118,82 @@ namespace GolfGame.Controllers
                     safeTimeStep,
                     out pointsArray,
                     out velocitiesArray,
-                    out bool landedOnGreen
+                    out bool landedOnGreen,
+                    out bool hasBounced
                 );
                 
                 lineRenderer.positionCount = pointsArray.Length;
                 lineRenderer.SetPositions(pointsArray);
                 lineRenderer.enabled = true;
+
+                // ── TRAJECTORY STABILITY CHECK ──────────────────────────────
+                // The ghost physics is non-deterministic: on some frames the ghost ball
+                // clips the edge of a collider (e.g. the NiceOn Cube's side wall) and 
+                // bounces sideways, producing a short false trajectory. On the next frame
+                // it doesn't clip, producing the correct long arc. This causes the 
+                // lineRenderer to flicker between two wildly different paths.
+                //
+                // Fix: If we have a cached good trajectory from the previous frame with
+                // the SAME launch parameters, and the new trajectory endpoint is wildly
+                // different (>50% shorter), use the cached one instead.
+                bool useCached = false;
+                if (cachedGoodTrajectory != null && cachedGoodTrajectory.Length > 2 &&
+                    pointsArray.Length > 2 &&
+                    Vector3.Distance(lastStartPosition, startPosition) < 0.01f &&
+                    Vector3.Distance(lastLaunchVelocity, launchVelocity) < 0.1f)
+                {
+                    float cachedDist = Vector3.Distance(cachedGoodTrajectory[0], cachedGoodTrajectory[cachedGoodTrajectory.Length - 1]);
+                    float newDist = Vector3.Distance(pointsArray[0], pointsArray[pointsArray.Length - 1]);
+                    
+                    // If the new trajectory is drastically shorter, it's a false bounce
+                    if (newDist < cachedDist * 0.5f)
+                    {
+                        useCached = true;
+                    }
+                }
+
+                if (useCached)
+                {
+                    lineRenderer.positionCount = cachedGoodTrajectory.Length;
+                    lineRenderer.SetPositions(cachedGoodTrajectory);
+                }
+                else
+                {
+                    // This is a good trajectory, cache it
+                    cachedGoodTrajectory = (Vector3[])pointsArray.Clone();
+                }
+
+                lastStartPosition = startPosition;
+                lastLaunchVelocity = launchVelocity;
+
+                // ── LANDING SURFACE DEBUG LOG ──────────────────────────────────
+                // Fires a downward Raycast from the last point of the arc
+                // to reveal exactly what surface/layer the line is landing on.
+                // Uses QueryTriggerInteraction.Ignore so triggers (like the Flag) don't pollute the log.
+                if (pointsArray.Length > 0)
+                {
+                    Vector3 lastPt = pointsArray[pointsArray.Length - 1];
+                    Vector3 rayOrigin = lastPt + Vector3.up * 0.5f;
+                    if (Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit landHit, 5f, ~0, QueryTriggerInteraction.Ignore))
+                    {
+                        Debug.Log($"[TrajLanding] Object='{landHit.collider.gameObject.name}'" +
+                                  $" | Tag='{landHit.collider.gameObject.tag}'" +
+                                  $" | Layer='{LayerMask.LayerToName(landHit.collider.gameObject.layer)}'" +
+                                  $" | ColliderType='{landHit.collider.GetType().Name}'");
+                    }
+                    else
+                    {
+                        Debug.Log($"[TrajLanding] No surface found below last point {lastPt}");
+                    }
+                }
+                // ─────────────────────────────────────────────────────────────
                 
                 BallPhysicsController physics = GetComponent<BallPhysicsController>();
                 float drag = physics != null && physics.DefaultGround != null ? physics.DefaultGround.LinearDrag : 0.5f;
 
-                if (!landedOnGreen && PostCollisionLineRenderer != null && physics != null)
-                    DetectAndDrawPostCollisionArc(pointsArray.Length, targetHeight, physics, drag);
-                else
-                    HidePostCollisionLine();
+                // Per user request, the second line (PostCollisionLineRenderer) is a false line and should just be hidden.
+                // The ghost physics already accurately draws bounces and rolls in the main line renderer anyway!
+                HidePostCollisionLine();
             }
             else
             {
@@ -140,6 +207,7 @@ namespace GolfGame.Controllers
             lineRenderer.enabled       = false;
             lineRenderer.positionCount = 0;
             HidePostCollisionLine();
+            cachedGoodTrajectory = null; // Clear cache so stale data doesn't persist across aim changes
         }
 
         #endregion
@@ -161,6 +229,8 @@ namespace GolfGame.Controllers
             AimVisualsController aimVisuals = GetComponent<AimVisualsController>();
             GameObject targetMarker = aimVisuals != null ? aimVisuals.ActiveTargetMarker : null;
 
+            float distanceFromStart = 0f;
+
             for (int i = 0; i < primaryStepCount - 1; i++)
             {
                 Vector3 from = pointsArray[i];
@@ -168,7 +238,12 @@ namespace GolfGame.Controllers
                 Vector3 dir  = to - from;
                 float   dist = dir.magnitude;
 
+                distanceFromStart += dist;
                 if (dist < 0.001f) continue;
+                
+                // CRITICAL FIX: Skip the first 0.5 meters of the trajectory to prevent the SphereCast 
+                // from instantly hitting the player model, golf club, or tee and reflecting sideways!
+                if (distanceFromStart < 0.5f) continue;
 
                 // ── Height guard ──────────────────────────────────────────────────
                 // Skip segments at or below the terrain surface (bounce snap points).
@@ -184,29 +259,19 @@ namespace GolfGame.Controllers
                         out RaycastHit hit, dist, CollisionLayerMask,
                         QueryTriggerInteraction.Ignore))
                 {
-                    // ── Skip the ball itself ──────────────────────────────────────
-                    if (hit.collider.gameObject == gameObject) continue;
-
-                    // ── Skip the target marker and all its children ───────────────
-                    // The trajectory points at the marker — its Box Collider would
-                    // always be detected without this exclusion.
-                    if (targetMarker != null &&
-                        (hit.collider.gameObject == targetMarker ||
-                         hit.collider.transform.IsChildOf(targetMarker.transform)))
-                        continue;
-
-                    // ── Skip the Flag (and its children) ─────────────────────────
-                    bool isFlag = false;
-                    Transform flagCheck = hit.collider.transform;
-                    while (flagCheck != null)
+                    // ── Skip aiming helpers and the ball itself ───────────────
+                    // The trajectory shouldn't bounce off aiming indicators, camera pivots, or the real golf ball.
+                    string objName = hit.collider.gameObject.name;
+                    if (hit.collider.GetComponent<BallPhysicsController>() != null ||
+                        hit.collider.GetComponentInParent<BallPhysicsController>() != null ||
+                        objName.IndexOf("Ball", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        objName.Contains("Marker") || 
+                        objName.Contains("Pivot"))
                     {
-                        if (flagCheck.CompareTag("Flag")) { isFlag = true; break; }
-                        flagCheck = flagCheck.parent;
+                        continue;
                     }
-                    if (isFlag) continue;
 
-                    // ── Skip terrain & putting greens ──────────────────────────────────────────────
-                    // TerrainCollider is the definitive Unity terrain physics type.
+                    // ── Skip terrain, putting greens, and flags ────────────────────────────────
                     bool isTerrain = hit.collider is TerrainCollider
                                   || hit.collider.GetComponent<TerrainCollider>() != null
                                   || hit.collider.GetComponent<Terrain>() != null;
@@ -214,18 +279,32 @@ namespace GolfGame.Controllers
                     Transform checkTransform = hit.collider.transform;
                     while (checkTransform != null && !isTerrain)
                     {
-                        if (checkTransform.CompareTag("Terrain") || checkTransform.CompareTag("NiceOn") ||
+                        string tName = checkTransform.name;
+                        if (checkTransform.CompareTag("Terrain") || 
+                            checkTransform.CompareTag("NiceOn") ||
+                            checkTransform.CompareTag("Flag") ||
                             LayerMask.LayerToName(checkTransform.gameObject.layer) == "NiceOn" ||
-                            LayerMask.LayerToName(checkTransform.gameObject.layer) == "Terrain")
+                            LayerMask.LayerToName(checkTransform.gameObject.layer) == "Terrain" ||
+                            tName.IndexOf("Hole", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                            tName.IndexOf("Cup", System.StringComparison.OrdinalIgnoreCase) >= 0)
                         {
                             isTerrain = true;
                             break;
                         }
                         checkTransform = checkTransform.parent;
                     }
-                    if (isTerrain) continue;
+                    
+                    if (isTerrain)
+                    {
+                        continue;
+                    }
 
-                    // Found a real non-terrain, non-marker physics object
+                    // Found a real non-terrain, non-marker physics object — this WILL draw the PostCollisionLine!
+                    Debug.Log($"[TrajPostCol] DRAWING post-collision arc! Hit Object='{objName}'" +
+                              $" | Tag='{hit.collider.gameObject.tag}'" +
+                              $" | Layer='{LayerMask.LayerToName(hit.collider.gameObject.layer)}'" +
+                              $" | ColliderType='{hit.collider.GetType().Name}'" +
+                              $" | Step={i}/{primaryStepCount}");
                     SimulatePostCollisionArc(
                         hit.point,
                         hit.normal,
