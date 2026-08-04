@@ -191,9 +191,7 @@ namespace GolfGame.Controllers
                 BallPhysicsController physics = GetComponent<BallPhysicsController>();
                 float drag = physics != null && physics.DefaultGround != null ? physics.DefaultGround.LinearDrag : 0.5f;
 
-                // Per user request, the second line (PostCollisionLineRenderer) is a false line and should just be hidden.
-                // The ghost physics already accurately draws bounces and rolls in the main line renderer anyway!
-                HidePostCollisionLine();
+                DetectAndDrawPostCollisionArc(pointsArray.Length, targetHeight, physics, drag);
             }
             else
             {

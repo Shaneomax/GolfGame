@@ -75,7 +75,7 @@ namespace GolfGame.Controllers
         public float RollCameraHeight = 2f;
 
         [Tooltip("How quickly the camera catches up to the ball. Lower = more cinematic lag.")]
-        public float RollCameraFollowSpeed = 4f;
+        public float RollCameraFollowSpeed = 2f;
 
         [Tooltip("How quickly the camera rotates to face behind the ball's direction. Lower = softer turns.")]
         public float RollCameraLookSpeed = 5f;
@@ -86,7 +86,7 @@ namespace GolfGame.Controllers
 
         [Header("Roll Camera Zoom-In After Bounce")]
         [Tooltip("How fast the roll camera zooms in toward the ball.")]
-        public float RollZoomSpeed = 0.5f;
+        public float RollZoomSpeed = 0.1f;
 
         [Tooltip("The final close-up distance behind the ball.")]
         public float RollZoomTargetDistance = 2f;
@@ -627,7 +627,7 @@ namespace GolfGame.Controllers
             }
             // ── Transition 3: Bounce → Roll ──────────────────────────────────────
             // Triggers once the ball's speed drops, indicating big bounces are over.
-            else if (_flightSubState == FlightState_Bounce && ballRigidbody.linearVelocity.magnitude < 5f)
+            else if (_flightSubState == FlightState_Bounce && ballRigidbody.linearVelocity.magnitude < 2f)
             {
                 TransitionToRollCamera();
             }

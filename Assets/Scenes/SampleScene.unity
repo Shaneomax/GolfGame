@@ -4765,12 +4765,20 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 884888581}
     - target: {fileID: 1958071550860830986, guid: 4c347dec573e31448b9db8046ebf80ea, type: 3}
+      propertyPath: RollZoomSpeed
+      value: 0.1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1958071550860830986, guid: 4c347dec573e31448b9db8046ebf80ea, type: 3}
       propertyPath: AimTargetAnchor
       value: 
       objectReference: {fileID: 2417385486014777027}
     - target: {fileID: 1958071550860830986, guid: 4c347dec573e31448b9db8046ebf80ea, type: 3}
       propertyPath: LandingZoomSpeed
       value: 0.28
+      objectReference: {fileID: 0}
+    - target: {fileID: 1958071550860830986, guid: 4c347dec573e31448b9db8046ebf80ea, type: 3}
+      propertyPath: RollCameraFollowSpeed
+      value: 2
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
