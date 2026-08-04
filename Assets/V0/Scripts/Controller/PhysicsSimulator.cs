@@ -68,7 +68,10 @@ namespace GolfGame.Controllers
 
                 // Do not copy aiming helpers like the Target Marker or the Ball Pivot, 
                 // otherwise the ghost ball will hit them and bounce backwards!
-                if (col.gameObject.name.Contains("Marker") || col.gameObject.name.Contains("Pivot") || col.gameObject.name.Contains("GolfBall") || col.gameObject.CompareTag("Player"))
+                // Also exclude "Cube" — the Cube under HOLE_box4 is the hole cup structure,
+                // NOT terrain. If copied as a solid collider, the ghost ball bounces off its
+                // side walls and a second ghost ball position appears in the scene.
+                if (col.gameObject.name.Contains("Marker") || col.gameObject.name.Contains("Pivot") || col.gameObject.name.Contains("GolfBall") || col.gameObject.CompareTag("Player") || col.gameObject.name == "Cube")
                     continue;
 
                 // Create an empty GameObject for the physics representation
