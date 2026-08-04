@@ -68,7 +68,7 @@ namespace GolfGame.Controllers
 
                 // Do not copy aiming helpers like the Target Marker or the Ball Pivot, 
                 // otherwise the ghost ball will hit them and bounce backwards!
-                if (col.gameObject.name.Contains("Marker") || col.gameObject.name.Contains("Pivot") || col.gameObject.name.Contains("GolfBall"))
+                if (col.gameObject.name.Contains("Marker") || col.gameObject.name.Contains("Pivot") || col.gameObject.name.Contains("GolfBall") || col.gameObject.CompareTag("Player"))
                     continue;
 
                 // Create an empty GameObject for the physics representation
@@ -251,6 +251,11 @@ namespace GolfGame.Controllers
             velocitiesArray = velocities.ToArray();
             landedOnGreen = hasLandedOnGreen;
             hasBounced = physicsController != null && physicsController.BounceCount > 0;
+            
+            // CRITICAL FIX: Teleport the ghost ball far away after simulation.
+            // Toggling SetActive, Colliders, or isKinematic every frame breaks Unity's manual physics simulation
+            // and results in the broken "short line" visual glitch. Teleporting is 100% safe and hides it physically!
+            rb.position = new Vector3(0, -10000, 0);
         }
 
         private void OnDestroy()
