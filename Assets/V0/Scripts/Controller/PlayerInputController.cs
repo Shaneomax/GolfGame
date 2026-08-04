@@ -47,6 +47,10 @@ namespace GolfGame.Controllers
         public ShotAccuracyController AccuracyController;
         public GolfGame.UI.SpinInputUI SpinInput;
 
+        [Header("UI Toggles")]
+        [Tooltip("Drag the PivotPosition or any UI GameObject here to disable it on the green.")]
+        public GameObject DisableOnGreenUI;
+
         #endregion
 
         private Rigidbody rb;
@@ -126,6 +130,11 @@ namespace GolfGame.Controllers
                 {
                     StartCoroutine(DelayedMarkerSetup());
                 }
+
+                if (DisableOnGreenUI != null)
+                {
+                    DisableOnGreenUI.SetActive(!IsPuttingMode());
+                }
             }
             else if (newState == GameStateManager.GameState.Aiming)
             {
@@ -139,6 +148,11 @@ namespace GolfGame.Controllers
                     AimVisuals.HideTrajectory(); // Hide flight trajectory line!
                     if (AimVisuals.ActiveTargetMarker != null)
                         AimVisuals.ActiveTargetMarker.SetActive(false);
+                }
+
+                if (DisableOnGreenUI != null)
+                {
+                    DisableOnGreenUI.SetActive(!IsPuttingMode());
                 }
             }
             else if (newState == GameStateManager.GameState.Flight)
@@ -245,6 +259,17 @@ namespace GolfGame.Controllers
                 if (IsPuttingMode() && AimVisuals != null)
                 {
                     AimVisuals.HideTrajectory();
+                }
+            }
+
+            // Always enforce UI visibility state dynamically in case the ground data updates 
+            // after the state transition.
+            if (DisableOnGreenUI != null && (state == GameStateManager.GameState.Setup || state == GameStateManager.GameState.Aiming))
+            {
+                bool shouldBeActive = !IsPuttingMode();
+                if (DisableOnGreenUI.activeSelf != shouldBeActive)
+                {
+                    DisableOnGreenUI.SetActive(shouldBeActive);
                 }
             }
         }
@@ -617,6 +642,17 @@ namespace GolfGame.Controllers
             }
             
             return preciseVelocity * speedMultiplier * distanceMultiplier;
+        }
+
+        private Transform FindChildRecursive(Transform parent, string name)
+        {
+            if (parent.name == name) return parent;
+            foreach (Transform child in parent)
+            {
+                Transform found = FindChildRecursive(child, name);
+                if (found != null) return found;
+            }
+            return null;
         }
     }
 }

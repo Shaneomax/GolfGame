@@ -715,14 +715,19 @@ namespace GolfGame.Controllers
             RollCamera.Follow   = null;           // We drive the transform manually for smooth organic feel
             RollCamera.LookAt   = ballTransform;  // Cinemachine still handles look-at damping
 
-            // Seed position behind ball so there is no pop on first frame
             _rollCamVelocityRef    = Vector3.zero;
-            _currentRollDistance   = RollCameraDistance;
-            _currentRollHeight     = RollCameraHeight;
-            Vector3 startPos = ballTransform.position
-                - (_smoothedRollDir * _currentRollDistance)
-                + (Vector3.up       * _currentRollHeight);
-            RollCamera.transform.position = PreventUnderground(startPos, 0.5f);
+            
+            // Start the distance/height further back so the transition is smoother
+            _currentRollDistance   = RollCameraDistance * 1.5f;
+            _currentRollHeight     = RollCameraHeight * 1.5f;
+            
+            // Instead of instantly teleporting the RollCamera to the ground (which causes a jarring parallax 
+            // effect as the camera blends), we let it start from where it currently is (or where LandingCamera is)
+            // and SmoothDamp will pull it into position organically.
+            if (LandingCamera != null)
+            {
+                RollCamera.transform.position = LandingCamera.transform.position;
+            }
         }
 
         /// <summary>
@@ -762,9 +767,17 @@ namespace GolfGame.Controllers
             );
             if (_smoothedRollDir.sqrMagnitude < 0.001f) _smoothedRollDir = shotDir;
 
-            // ── 3. Slowly zoom in by reducing distance and height ───────────
-            _currentRollDistance = Mathf.Lerp(_currentRollDistance, RollZoomTargetDistance, Time.deltaTime * RollZoomSpeed);
-            _currentRollHeight  = Mathf.Lerp(_currentRollHeight,  RollZoomTargetHeight,  Time.deltaTime * RollZoomSpeed);
+            // ── 3. Dynamic Zoom based on Ball Speed (Golf Clash Style) ──────
+            // The camera pulls back when the ball is rolling fast, and zooms in tight 
+            // as it slows down. This completely eliminates the "fake speed boost" illusion.
+            float currentSpeed = ballRigidbody != null ? ballRigidbody.linearVelocity.magnitude : 0f;
+            float speedRatio = Mathf.Clamp01(currentSpeed / 12f); // Max out scaling at 12 m/s
+            
+            float targetDist = Mathf.Lerp(RollZoomTargetDistance, RollCameraDistance * 1.5f, speedRatio);
+            float targetHeight = Mathf.Lerp(RollZoomTargetHeight, RollCameraHeight * 1.5f, speedRatio);
+
+            _currentRollDistance = Mathf.Lerp(_currentRollDistance, targetDist, Time.deltaTime * RollZoomSpeed * 2f);
+            _currentRollHeight  = Mathf.Lerp(_currentRollHeight,  targetHeight,  Time.deltaTime * RollZoomSpeed * 2f);
 
             // ── 4. Compute desired camera position behind ball ─────────────────
             Vector3 desiredPos = ballTransform.position

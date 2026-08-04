@@ -230,13 +230,7 @@ namespace GolfGame.Controllers
 
                 ghostPhysicsScene.Simulate(timeStep);
                 
-                // CRITICAL FIX: If the ball starts traveling backwards (e.g. hits the back of the hole cup 
-                // or bounces off the flag pole), STOP simulating! This prevents the trajectory line 
-                // from drawing a bounce-back or knot inside the hole, which looks like a double-line.
-                if (i > 5 && Vector3.Dot(rb.linearVelocity.normalized, launchVelocity.normalized) < -0.1f)
-                {
-                    break;
-                }
+
                 
                 Vector3 ballPos = rb.position;
                 points.Add(ballPos);

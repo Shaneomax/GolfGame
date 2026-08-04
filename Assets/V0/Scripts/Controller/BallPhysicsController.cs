@@ -154,43 +154,37 @@ namespace GolfGame.Controllers
             if (rb != null) rb.maxAngularVelocity = 150f; 
         }
 
-        // Detect hitting the flag to end the hole
+        private bool _isNearHole = false;
+        private Vector3 _holeCenter;
+        private float _holeRadius = 0.25f; // Standard golf hole radius in Unity units (adjust as needed)
+
+        // Detect hitting the flag/hole trigger
         private void OnTriggerEnter(Collider other)
         {
             if (other.CompareTag("Flag"))
             {
-                Debug.Log("[PlayerInput] Reached the flag! Ending the loop.");
+                _isNearHole = true;
+                _holeCenter = other.transform.position;
                 
-                // Disable physics to let DOTween take over
-                rb.linearVelocity = Vector3.zero;
-                rb.angularVelocity = Vector3.zero;
-                rb.isKinematic = true;
-                
-                if (ballCollider != null)
+                // Slightly reduce the physical collider radius so it doesn't get stuck on the rim
+                if (ballCollider != null && ballCollider is SphereCollider sc)
                 {
-                    ballCollider.enabled = false;
+                    sc.radius *= 0.9f; 
                 }
+            }
+        }
 
-                // Cancel any pending StopBall / DelayStateChange coroutines
-                StopAllCoroutines();
-
-                // Create a natural drop animation using DOTween
-                Vector3 holeCenter = other.transform.position;
-                Vector3 currentPos = transform.position;
-
-                Sequence dropSequence = DOTween.Sequence();
+        private void OnTriggerExit(Collider other)
+        {
+            if (other.CompareTag("Flag"))
+            {
+                _isNearHole = false;
                 
-                // 1. Roll precisely to the X/Z center of the hole
-                dropSequence.Append(transform.DOMove(new Vector3(holeCenter.x, currentPos.y, holeCenter.z), 0.15f).SetEase(Ease.OutQuad));
-                
-                // 2. Drop down into the hole, bouncing slightly at the bottom
-                // Use currentPos.y (ground level) to ensure it drops DOWN into the cup, rather than flying up to the flag's pivot!
-                dropSequence.Append(transform.DOMoveY(currentPos.y - 0.12f, 0.35f).SetEase(Ease.OutBounce));
-
-                if (GameStateManager.Instance != null)
-                    GameStateManager.Instance.ChangeState(GameStateManager.GameState.Resolution);
-
-                StartCoroutine(GoToMainMenuAfterDelay(2f));
+                // Restore collider size if it lips out
+                if (ballCollider != null && ballCollider is SphereCollider sc)
+                {
+                    sc.radius /= 0.9f; 
+                }
             }
         }
 
@@ -259,6 +253,39 @@ namespace GolfGame.Controllers
             if (rb != null) _lastVelocity = rb.linearVelocity;
 
             bool isFlightState = isGhostBall || (GameStateManager.Instance != null && GameStateManager.Instance.CurrentState == GameStateManager.GameState.Flight);
+
+            // --- GOLF CLASH STYLE GRAVITY WELL (SUCTION) ---
+            if (_isNearHole && rb != null && !isGhostBall)
+            {
+                Vector3 toHole = _holeCenter - rb.position;
+                toHole.y = 0f; // Only pull horizontally
+                float distToHole = toHole.magnitude;
+
+                // If the ball actually falls below ground level (it's inside the cup)
+                if (rb.position.y < _holeCenter.y - 0.05f)
+                {
+                    // It officially sunk!
+                    _isNearHole = false; // Stop sucking
+                    rb.linearDamping = 2f; // Slow it down so it doesn't bounce out wildly
+                    
+                    if (GameStateManager.Instance != null && GameStateManager.Instance.CurrentState != GameStateManager.GameState.Resolution)
+                    {
+                        GameStateManager.Instance.ChangeState(GameStateManager.GameState.Resolution);
+                        StartCoroutine(GoToMainMenuAfterDelay(2f));
+                    }
+                }
+                else if (distToHole < _holeRadius * 1.5f)
+                {
+                    // Apply suction if moving slowly enough to fall in
+                    float speed = rb.linearVelocity.magnitude;
+                    if (speed < 4.0f) // Threshold for a "makeable" putt speed
+                    {
+                        // Stronger pull the closer and slower it gets
+                        float suctionStrength = Mathf.Lerp(25f, 5f, speed / 4.0f);
+                        rb.AddForce(toHole.normalized * suctionStrength, ForceMode.Acceleration);
+                    }
+                }
+            }
 
             if (isFlightState)
             {
